@@ -1,0 +1,96 @@
+//
+// Created by Administrator on 26-1-7.
+//
+
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <iostream>
+#include <QWidget>
+#include "../manager_of_ui.h"
+
+#include "../../tools/diy_serial/diy_serial.h"
+#include "../../tools/diy_oscilloscope-plot/diy_oscilloscope-plot.h"
+#include "../../tools/diy_bl/diy_bl.h"
+
+namespace MyApp::UI{ class UiManager; }
+
+class StartTest;
+class PatientDatabase;
+class EachPatientDatabase;
+
+namespace MyApp::UI::mainwindow {
+    QT_BEGIN_NAMESPACE
+    namespace Ui { class mainwindow; }
+    QT_END_NAMESPACE
+
+    class mainwindow : public QWidget {
+        Q_OBJECT
+
+
+    public:
+        explicit mainwindow(QWidget *parent = nullptr, UiManager *ui_manager = nullptr);
+        ~mainwindow() override;
+
+        bool isBLConnected = false;
+        bool isSerialConnected = false;
+
+    protected:
+        bool event(QEvent *event) override;
+        void closeEvent(QCloseEvent *event) override;
+
+    private slots:
+        void on_BTN_SerialConnect_clicked();
+        void on_BTN_BLConnect_clicked();
+        void on_BTN_Patient_StartTest_clicked();
+        void on_BTN_Patient_AddANDUpdate_clicked();
+        void on_BTN_Patient_SearchRecord_clicked();
+        void on_BTN_Test_clicked();
+        void on_BTN_EXIT_clicked();
+
+        void on_RBTN_BL_clicked();
+        void on_RBTN_Serial_clicked();
+
+        void onBLDevicesFound(const QList<QBluetoothDeviceInfo> &devices);
+        void onBLStatus(const QString &msg);
+        void set_isBLConnected(bool _info);
+        void onSerialDisconnected();
+        void test_esp32_data_draw(double vol, int index);
+
+    private:
+        Ui::mainwindow *ui;
+        UiManager *ui_manager;
+
+        QButtonGroup *rbtnGroup_connection;
+
+        SerialManager *serialMgr;
+        BluetoothManager *blMgr;
+        QList<QBluetoothDeviceInfo> BLscannedDevices;
+
+        // 数据库
+        PatientDatabase *pd;  // TODO: 没有固定的p_name和p_id使用同一个即可 后面更改 优化内存使用
+        EachPatientDatabase *epd;
+
+        // 开始测试类
+        StartTest *st;
+        bool isTesting = false;
+
+        // 主界面绘图
+        OscilloscopeEngine *m_engine;
+        void initPlots();
+        void deinitPlots();
+        QVector<OscilloscopePlot*> m_plots;
+
+        void print_serial_data(const QString &data);
+
+    private slots:
+        void test_generate_data();
+    private:
+        QTimer test_timer;
+        int test_writeIndex = 0;
+        float test_phase = 0.0f;
+
+    };
+} // MyApp::UI::mainwindow
+
+#endif //MAINWINDOW_H
