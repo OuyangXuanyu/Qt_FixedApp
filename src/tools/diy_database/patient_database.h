@@ -14,7 +14,8 @@
 
 #include "../../third_src/sqlite3/sqlite3.h"
 
-class PatientDatabase {
+class PatientDatabase : public QObject {
+    Q_OBJECT
 public:
     explicit PatientDatabase(std::string appPath);
     ~PatientDatabase();
@@ -40,6 +41,8 @@ public:
     );
 
     int getNextPatientID();
+signals:
+    void createNewTable(int patient_id_diy);
 
 private:
     sqlite3* db{};
@@ -49,12 +52,15 @@ private:
     std::string nowTime();
 };
 
-class EachPatientDatabase {
+class EachPatientDatabase : public QObject {
+    Q_OBJECT
 public:
     explicit EachPatientDatabase(const std::string& appPath);
     // ~EachPatientDatabase();
 
     void setANDget_info(const std::string& _name, const std::string& _id, QVector<QStringList>& infos);
+    bool createNewTable(int patient_id_diy);
+    bool add_testlist(std::string& p_name, std::string& p_id, std::string& start_time, std::string& duration_time);
 
     void close();
 

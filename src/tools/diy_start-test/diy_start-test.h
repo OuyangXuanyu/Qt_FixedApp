@@ -9,9 +9,15 @@
 #include <QWidget>
 #include <QDir>
 #include <QTcpSocket>
+#include <QMutex>
 #include "../../ui/manager_of_ui.h"
 
 // namespace MyApp::UI{ class UiManager; }
+
+struct DataFrame {
+    float data[8];
+};
+Q_DECLARE_METATYPE(DataFrame)
 
 class BLFrameParser;
 
@@ -25,14 +31,17 @@ public:
 
     BLFrameParser *blfp;
 
-    bool btn_pressed(const std::string &_name, const std::string &_id);
+    bool btn_pressed(const std::string &_name, const std::string &_id, bool start);
     void test_interruption();
 
     void parserData(const QByteArray &data);
-    void saveData(const QByteArray &data);
+    void saveData(QVector<DataFrame> batchSaveData);
     void transmitData(const QByteArray &data);
 
     void executeCMD(const QByteArray &cmd);
+
+signals:
+    void finished_test_epd(std::string& p_name, std::string& p_id, std::string& start_time, std::string& duration_time);
 
 private:
     bool openNewCsvFile();
@@ -70,33 +79,38 @@ class BLFrameParser : public QObject {
 public:
     explicit BLFrameParser(QObject *parent = nullptr);
 
-    void setDataFrame (uchar h1, uchar h2, uchar t1, uchar t2, int len);
-    void setCommandFrame(uchar h1, uchar h2, uchar t1, uchar t2, int len);
-
     void appendInfo(const QByteArray &info);
 
+    QTimer parserTimer;
 signals:
     void dataFrameParsed(const QByteArray& payload);
     void commandFrameParsed(const QByteArray& payload);
 
-private:
+public:
+    std::mutex m_mutex;
+    QByteArray m_totalBuffer;
+    QByteArray m_processBuffer;
+    QByteArray freshData;
+    QList<QVector<double>> m_channelData;
+
     void parse();
 
-private:
-    QByteArray m_totalBuffer;
 
-    struct FrameDef {
-        uchar head1, head2;
-        uchar tail1, tail2;
-        int   totalLen;      // 包含头尾的总长度
-    } m_dataDef, m_cmdDef;
+private:
+
 
     static constexpr int DATA_FRAME_LEN = 30;
-    static constexpr int CMD_FRAME_LEN  = 6;
+    static constexpr uint8_t DATA_HEADER1 = 0xEE;
+    static constexpr uint8_t DATA_HEADER2 = 0xBB;
+
 
 public:
 signals:
-    void test_esp32_data_signal(double vol, int index);
+    void test_esp32_data_signal(QList<QVector<double>> &m_channelData);
+    void dataSave(QVector<DataFrame> batchSaveData);
+    void data_error(int error_count);
+    // void test_esp32_data_signal(float *result_array);
+    // void dataSave(float *result_array);
 };
 
 #endif //DIY_START_TEST_H

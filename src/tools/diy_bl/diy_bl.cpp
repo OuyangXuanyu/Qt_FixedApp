@@ -88,9 +88,9 @@ void BluetoothManager::onServiceScanDone()
 
         // 写固定配置的UUID
         // 但是先写一下ESP32的UUID处理逻辑（以0000作为起始）
-        if (isStandardService(uuid)) {
-            continue;
-        }
+        // if (isStandardService(uuid)) {
+        //     continue;
+        // }
 
         service = controller->createServiceObject(uuid, this);
 
@@ -164,6 +164,7 @@ void BluetoothManager::onCharacteristicChanged(
     const QLowEnergyCharacteristic &, const QByteArray &value)
 {
     emit dataReceived(value);
+    // std::cout << QString::fromUtf8(value).toStdString() << std::endl;
 }
 
 void BluetoothManager::disconnectDevice()

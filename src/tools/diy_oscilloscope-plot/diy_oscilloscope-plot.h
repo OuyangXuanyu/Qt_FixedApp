@@ -8,11 +8,23 @@
 #include <cmath>
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLVertexArrayObject>
+#include <QOpenGLShaderProgram>
+
+
 #include <QTimer>
 #include <QRandomGenerator>
+
 #include <vector>
+#include <mutex>
 
 #include <gl/GL.h>
+
+struct Vertex {
+    float x;
+    float y;
+};
 
 class OscilloscopePlot : public QOpenGLWidget, protected QOpenGLFunctions
 {
@@ -22,6 +34,7 @@ public:
     ~OscilloscopePlot() override;
 
     void insertData(float e_data);
+    void insertDataBatch(const float* newData, int size);
     void tick();
 
 protected:
@@ -30,15 +43,26 @@ protected:
     void paintGL() override;
 
 private:
-    static constexpr int SAMPLE_COUNT = 1000;
+    QOpenGLShaderProgram m_shader;
+    QOpenGLVertexArrayObject m_vao;
+    QOpenGLBuffer m_vbo;
+
+    std::vector<Vertex> m_vertices;
+
+    std::mutex m_dataMutex;
+    int   m_writeIndex = 0;   // 当前写入位置
+
+    static constexpr int X_PLOT_COUNT = 2000;
+    static constexpr int X_SAVE_COUNT = 2000;
 
     QTimer m_timer;  // 图像刷新率（默认60Hz）
     // // Version 1
     // std::vector<float> m_data;
 
+    // 数据互斥锁
+
     // Version 2
-    float m_data[SAMPLE_COUNT] = {0.0f};
-    int   m_writeIndex = 0;   // 当前写入位置
+    float m_data[X_SAVE_COUNT] = {0.0f};
 
     float m_phase = 0.0f;
 

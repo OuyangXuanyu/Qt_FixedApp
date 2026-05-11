@@ -11,23 +11,56 @@
 #include <windows.h>
 #endif
 
+#include "./bottom_menu/ui_mainwindow_bottom_menu.h"
+
 #include "../../tools/diy_database/patient_database.h"
 #include "../../tools/diy_start-test/diy_start-test.h"
+
+
+qint64 getChronoMicrosecondsSinceEpoch();
+void checkMyCore();
 
 namespace MyApp::UI::mainwindow {
     mainwindow::mainwindow(QWidget *parent, UiManager *ui_manager) : QWidget(parent), ui(new Ui::mainwindow), ui_manager(std::move(ui_manager)) {
         ui->setupUi(this);
 
+        checkMyCore();
+
+        // 初始化开始测试类
+        st = new StartTest(this, ui_manager);
+
         // 初始化绘图区域
         initPlots();
 
+        bottom_menu = new mainwindow_bottom_menu::mainwindow_bottom_menu(this);
+        bottom_menu->setParent(this);
+        bottom_menu->raise();
+        bottom_menu->updatePosition();
+
+
         // 连接方式RBTN
-        rbtnGroup_connection = new QButtonGroup(this);
-        rbtnGroup_connection->addButton(ui->RBTN_BL, 0);
-        rbtnGroup_connection->addButton(ui->RBTN_Serial, 1);
+        // rbtnGroup_connection = new QButtonGroup(this);
+        // rbtnGroup_connection->addButton(ui->RBTN_BL, 0);
+        // rbtnGroup_connection->addButton(ui->RBTN_Serial, 1);
 
         // 初始化串口Manager
-        serialMgr = new SerialManager(this);
+        serial_thread = new QThread(this);
+        serialMgr = new SerialManager(nullptr);
+
+        serialMgr->moveToThread(serial_thread);
+
+        connect(this, &mainwindow::startSerial, serialMgr, &SerialManager::open);
+        connect(this, &mainwindow::writeSerial, serialMgr, &SerialManager::write);
+        connect(this, &mainwindow::stopSerial, serialMgr, &SerialManager::close);
+
+        connect(serialMgr, &SerialManager::connectionLost, this, &mainwindow::onSerialDisconnected);
+        connect(serialMgr, &SerialManager::connectionSucceed, this, &mainwindow::onSerialConnected);
+
+        connect(serialMgr, &SerialManager::dataReceived, st->blfp, &BLFrameParser::appendInfo);
+        connect(serial_thread, &QThread::finished, serialMgr, &QObject::deleteLater);
+
+        serial_thread->start();
+
 
         // 初始化蓝牙Manager
         blMgr = new BluetoothManager(this);
@@ -36,8 +69,6 @@ namespace MyApp::UI::mainwindow {
         pd = new PatientDatabase(ui_manager->baseDir_AppData.toStdString());
         epd = new EachPatientDatabase(ui_manager->baseDir_AppData.toStdString());
 
-        // 初始化开始测试类
-        st = new StartTest(this, ui_manager);
 
         // 同时初始化 蓝牙(+串口)的信号
         connect(blMgr->blScr, &BluetoothScanner::deviceFound, this, &mainwindow::onBLDevicesFound);
@@ -53,15 +84,32 @@ namespace MyApp::UI::mainwindow {
         // );
 
         // 上传的数据解析接口
-        connect(blMgr, &BluetoothManager::dataReceived, st->blfp, &BLFrameParser::appendInfo);
-        connect(serialMgr, &SerialManager::dataReceived, st->blfp, &BLFrameParser::appendInfo);
-        connect(serialMgr, &SerialManager::connectionLost, this, &mainwindow::onSerialDisconnected);
+        connect(blMgr, &BluetoothManager::dataReceived, st->blfp, &BLFrameParser::appendInfo, Qt::QueuedConnection);
 
-        // (test)解析完数据
+
+        // 解析完数据绘图
         connect(st->blfp, &BLFrameParser::test_esp32_data_signal, this, &mainwindow::test_esp32_data_draw);
+        // 测试完数据写epd
+        connect(st, &StartTest::finished_test_epd, this, &mainwindow::save_test_epd);
+
+        // 错误数据
+        connect(st->blfp, &BLFrameParser::data_error, this, [&](const int error_count)
+        {
+            // TODO: 这里接受的内容到专门的数据流处理 -> 放到start-test类处理？
+            qDebug() << error_count;
+        }, Qt::QueuedConnection);
+        // ui->BTN_Patient_StartTest->setEnabled(false);
+        bottom_menu->raise();
+        bottom_menu->show(); // 确保它是显示状态
     }
     mainwindow::~mainwindow() {
+        if (serial_thread->isRunning()) {
+            serial_thread->quit();
+            serial_thread->wait();
+        }
+        std::cout << "~mainwindow()" << std::endl;
         delete ui;
+
     }
     bool mainwindow::event(QEvent *event) {
         /*
@@ -111,29 +159,33 @@ namespace MyApp::UI::mainwindow {
         event->accept();
     }
 
-    // 串口相关按钮实现
-    void mainwindow::on_RBTN_Serial_clicked(){
-        const auto items = serialMgr->serialGetPorts();
-        ui->CBBox_Serial->clear();
-        ui->CBBox_Serial->addItems(items);
-    }
-    void mainwindow::on_BTN_SerialConnect_clicked() {
-        if (isSerialConnected) {
-            if (serialMgr->open(ui->CBBox_Serial->currentText())) {
-                isSerialConnected = true;
-                ui->BTN_SerialConnect->setText(QStringLiteral("断开串口"));
-                ui->RBTN_Serial->setEnabled(false);
-                ui->RBTN_BL->setEnabled(false);
-            }
-        }
-        else {
-            serialMgr->close();
-            isSerialConnected = false;
-            ui->BTN_SerialConnect->setText(QStringLiteral("打开串口"));
-            ui->RBTN_Serial->setEnabled(true);
-            ui->RBTN_BL->setEnabled(true);
+    void mainwindow::resizeEvent(QResizeEvent *event) {
+        QWidget::resizeEvent(event); // 必须先调用基类处理
 
+        if (bottom_menu) {
+            bottom_menu->updatePosition();
+            qDebug() << "1";
         }
+    }
+
+    // 串口相关按钮实现
+    void mainwindow::on_BTN_SerialConnect_clicked() {
+        // if (!isSerialConnected) {
+        //     emit startSerial(
+        //         ui->CBBox_Serial->currentText(),
+        //         3000000,
+        //         QSerialPort::Data8,
+        //         QSerialPort::OneStop,
+        //         QSerialPort::NoParity
+        //         );
+        // }
+        // else {
+        //     emit stopSerial();
+        //     // isSerialConnected = false;
+        //     // ui->BTN_SerialConnect->setText(QStringLiteral("打开串口"));
+        //     // ui->RBTN_Serial->setEnabled(true);
+        //     // ui->RBTN_BL->setEnabled(true);
+        // }
 
     }
 
@@ -143,24 +195,19 @@ namespace MyApp::UI::mainwindow {
     }
 
     // 蓝牙相关按钮实现
-    void mainwindow::on_RBTN_BL_clicked(){
-        ui->CBBox_BL->clear();
-        blMgr->blScr->startScan();
-    }
     void mainwindow::on_BTN_BLConnect_clicked(){
-        const int index = ui->CBBox_BL->currentIndex();
-        if (index < 0 || index >= BLscannedDevices.size()) {
-            std::cout<<"[ERROR] 未选择有效设备"<<std::endl;
-            return;
-        }
-
-        const auto &device = BLscannedDevices.at(index);
-        ui->Label_AppName->setText("🔌 正在连接...");
-        std::cout<<"[INFO] 正在连接..."<<std::endl;
-
-        blMgr->connectToDevice(device);
+        // const int index = ui->CBBox_BL->currentIndex();
+        // if (index < 0 || index >= BLscannedDevices.size()) {
+        //     std::cout<<"[ERROR] 未选择有效设备"<<std::endl;
+        //     return;
+        // }
+        //
+        // const auto &device = BLscannedDevices.at(index);
+        // ui->Label_AppName->setText("🔌 正在连接...");
+        // std::cout<<"[INFO] 正在连接..."<<std::endl;
+        //
+        // blMgr->connectToDevice(device);
     }
-
     void mainwindow::onBLDevicesFound(const QList<QBluetoothDeviceInfo> &devices) {
         BLscannedDevices = devices;
         for (const auto &dev : devices) {
@@ -168,7 +215,7 @@ namespace MyApp::UI::mainwindow {
             //     .arg(dev.name())
             //     .arg(dev.address().toString());
             QString text = QString("%1").arg(dev.name());
-            ui->CBBox_BL->addItem(text);
+            bottom_menu->window_blSet->ui->CBBox_Bl->addItem(text);
         }
 
     }
@@ -178,20 +225,27 @@ namespace MyApp::UI::mainwindow {
     }
     void mainwindow::set_isBLConnected(const bool _info) {
         isBLConnected = _info;
-        ui->BTN_BLConnect->setText(_info ? "断开蓝牙" : "连接蓝牙");
+        bottom_menu->window_blSet->ui->BTN_BlConnect->setText(_info ? "断开蓝牙" : "连接蓝牙");
+    }
+
+    void mainwindow::onSerialConnected() {
+        isSerialConnected = true;
+        bottom_menu->window_serialSet->ui->BTN_SerialConnect->setText(QStringLiteral("断开串口"));
+        bottom_menu->ui->RBTN_Serial->setEnabled(false);
+        bottom_menu->ui->RBTN_BL->setEnabled(false);
     }
     void mainwindow::onSerialDisconnected() {
         isSerialConnected = false;
-        ui->BTN_SerialConnect->setText(QStringLiteral("打开串口"));
-        ui->RBTN_Serial->setEnabled(true);
-        ui->RBTN_BL->setEnabled(true);
+        bottom_menu->window_serialSet->ui->BTN_SerialConnect->setText(QStringLiteral("打开串口"));
+        bottom_menu->ui->RBTN_Serial->setEnabled(true);
+        bottom_menu->ui->RBTN_BL->setEnabled(true);
     }
 
     // 开始测试实现唯一入口
     void mainwindow::on_BTN_Patient_StartTest_clicked(){
         if (!isTesting) {
             // step1. 验证id/name是否为有效信息
-            const std::string _accountOrId = ui->Edit_Patient_AccountOrID->text().toStdString();
+            const std::string _accountOrId = bottom_menu->ui->Edit_Patient_AccountOrID->text().toStdString();
             std::string _name, _id;
             if (_accountOrId.empty()) {
                 QMessageBox::warning(this, "错误", "请填入信息");
@@ -216,21 +270,32 @@ namespace MyApp::UI::mainwindow {
             // step3. 重绘UI
             // todo:
             // step4. 执行start_test类的btn_pressed函数
-            if (!st->btn_pressed(_name, _id)) {
+            if (!st->btn_pressed(_name, _id, true)) {
                 return;
             }
             // step5. 绘图引擎start
             m_engine->start();
             // step6. 蓝牙发送"START"指令 / 串口
             if (isBLConnected) blMgr->write(QByteArrayLiteral("START"));
-            if (isSerialConnected) serialMgr->write(QStringLiteral("START"));
+            if (isSerialConnected) serialMgr->write(QStringLiteral("AA169000A6FF"));
             // step7. 修改各个按键的状态
-            ui->BTN_Patient_AddANDUpdate->setEnabled(false);
-            ui->BTN_Patient_StartTest->setText(QStringLiteral("停止测试"));
+            bottom_menu->ui->BTN_Patient_AddANDUpdate->setEnabled(false);
+            bottom_menu->ui->BTN_Patient_StartTest->setText(QStringLiteral("停止测试"));
             isTesting = true;
+            QMetaObject::invokeMethod(serialMgr, "setTesting", Qt::QueuedConnection, Q_ARG(bool, isTesting));
+            qint64 micros = getChronoMicrosecondsSinceEpoch();
+            qDebug() << "Chrono timestamp (μs):" << micros;
+
         } else {
-            // Step1. 主动断开数据流
-            // Step2. 向硬件发送停止指令
+            isTesting = false;
+            QMetaObject::invokeMethod(serialMgr, "setTesting", Qt::QueuedConnection, Q_ARG(bool, isTesting));
+            // Step1. 断开signal
+            qint64 micros = getChronoMicrosecondsSinceEpoch();
+            qDebug() << "Chrono timestamp (μs):" << micros;
+            // Step2. st执行断开
+            st->btn_pressed("", "", false);
+            // Step3.
+            bottom_menu->ui->BTN_Patient_StartTest->setText(QStringLiteral("开始测试"));
         }
 
 
@@ -238,27 +303,35 @@ namespace MyApp::UI::mainwindow {
 
     // 调用新的窗口
     void mainwindow::on_BTN_Patient_AddANDUpdate_clicked(){
-        ui_manager->show_mainwindow_addpatient(ui->Edit_Patient_AccountOrID->text());
+        ui_manager->show_mainwindow_addpatient(bottom_menu->ui->Edit_Patient_AccountOrID->text());
     }
     void mainwindow::on_BTN_Patient_SearchRecord_clicked(){
-        ui_manager->show_mainwindow_searchpatient(ui->Edit_Patient_AccountOrID->text());
+        ui_manager->show_mainwindow_searchpatient(bottom_menu->ui->Edit_Patient_AccountOrID->text());
     }
 
     // 测试按钮
-    void mainwindow::on_BTN_Test_clicked(){
-        std::cout << "btn was pressed" << std::endl;
-
-        // // 测试：发送START到蓝牙端
-        // if (isBLConnected) blMgr->write(QByteArrayLiteral("START"));
-        test_timer.setInterval(25);
-        connect(&test_timer, &QTimer::timeout, this, &mainwindow::test_generate_data);
-        test_timer.start();
-        m_engine->start();
-
+    void mainwindow::on_BTN_Test_clicked() {
+        // std::cout << "btn was pressed" << std::endl;
+        //
+        // // // 测试：发送START到蓝牙端
+        // // if (isBLConnected) blMgr->write(QByteArrayLiteral("START"));
+        // test_timer.setInterval(25);
+        // connect(&test_timer, &QTimer::timeout, this, &mainwindow::test_generate_data);
+        // test_timer.start();
+        // // m_engine->start();
+        if (isSerialConnected) {
+            // serialMgr->write("73");
+            serialMgr->write(QStringLiteral("AA169000A6FF"));
+            // bottom_menu->ui->StatusBar_Label->setText(QStringLiteral("发送启动指令成功"));  // todo: danger:
+            // ui->BTN_Patient_StartTest->setEnabled(true);
+        } else {
+            // bottom_menu->ui->StatusBar_Label->setText(QStringLiteral("串口未开启，发送启动指令失败"));  // todo: danger:
+        }
     }
 
     // 退出按钮
     void mainwindow::on_BTN_EXIT_clicked() {
+        std::cout << 1231133123 << std::endl;
         this->close();
     }
 
@@ -282,6 +355,7 @@ namespace MyApp::UI::mainwindow {
 
             layout->addWidget(plot);
 
+            // DANGER:
             m_plots.push_back(plot);
             m_engine->addPlot(plot);
         };
@@ -293,6 +367,8 @@ namespace MyApp::UI::mainwindow {
         attachPlot(ui->Plot_E);
         attachPlot(ui->Plot_F);
         attachPlot(ui->Plot_G);
+        attachPlot(ui->Plot_H);
+        attachPlot(ui->Plot_I);
     }
 
     void mainwindow::deinitPlots() {
@@ -301,10 +377,12 @@ namespace MyApp::UI::mainwindow {
         if (m_engine) {
             m_engine->stop();
         }
-
-        for (auto* plot : m_plots) {
-            m_engine->removePlot(plot);  // 假设引擎有这个方法
+        if (m_engine) {
+            for (auto* plot : m_plots) {
+                m_engine->removePlot(plot);  // 假设引擎有这个方法
+            }
         }
+
 
         // for (auto* plot : m_plots) {
         //     if (plot) {
@@ -337,11 +415,60 @@ namespace MyApp::UI::mainwindow {
         test_writeIndex++;
     }
 
-    void mainwindow::test_esp32_data_draw(const double vol, const int index) {
-        OscilloscopePlot* plot = m_engine->m_plots.at(index);
-        plot->insertData(vol);
+    // void mainwindow::test_esp32_data_draw(const float *result_array) {
+    void mainwindow::test_esp32_data_draw(QList<QVector<double>> &newData) {
+        if (newData.isEmpty() || newData[0].isEmpty()) return;
+
+        int channelCount = newData.size(); // 应该是 7
+        int pointCount = newData[0].size(); // 应该是 10
+
+        // static int judge_count = 0;
+        // 遍历每一个通道
+        for (int j = 0; j < channelCount; ++j) {
+            if (j >= m_engine->m_plots.size()) break; // 防止越界
+
+            // 直接获取该通道的 QVector 地址并推送到对应的 Plot
+            // 如果你的 insertDataBatch 接收 float*，需要注意 double 到 float 的转换
+            // 如果 insertDataBatch 已经支持 double，直接传 data() 即可
+
+            const QVector<double> &oneChannel = newData.at(j);
+
+            // 如果你的绘图引擎 insertDataBatch 必须接收 float*
+            // 且 newData 是 double，则仍需一个临时转换：
+            static QVector<float> tempBuffer;
+            tempBuffer.resize(pointCount);
+            for(int i = 0; i < pointCount; ++i) {
+                tempBuffer[i] = static_cast<float>(oneChannel[i]);
+            }
+
+            m_engine->m_plots.at(j)->insertDataBatch(tempBuffer.data(), pointCount);
+        }
+
+    }
+
+    void mainwindow::save_test_epd(std::string& p_name, std::string& p_id, std::string& start_time, std::string& duration_time) {
+        auto *t_epd = new EachPatientDatabase(ui_manager->baseDir_AppData.toStdString());
+        bool is_success = t_epd->createNewTable(std::stoi(p_id));
+        if (!is_success) {
+            QMessageBox::warning(this, "错误", "创建表失败");
+        }
+        is_success = t_epd->add_testlist(p_name, p_id, start_time, duration_time);
+        std::cout << "is_success_abc: " << is_success << std::endl;
     }
 
 
 
 } // MyApp::UI::mainwindow
+
+qint64 getChronoMicrosecondsSinceEpoch() {
+    const auto now = std::chrono::system_clock::now();
+    const auto duration = now.time_since_epoch();
+    const auto micros = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+    return micros.count();
+}
+
+void checkMyCore() {
+    // 获取当前代码正在哪个逻辑核心上执行
+    const DWORD coreNum = GetCurrentProcessorNumber();
+    qDebug() << "UI Thread is currently running on Logical Core:" << coreNum;
+}

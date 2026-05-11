@@ -81,8 +81,10 @@ namespace MyApp::UI::mainwindow_playbackdata {
         void resize_table_columns();
 
         // Plot init
-        PlaybackPlot
+        PlaybackEngine *m_engine;
+        QVector<PlaybackPlot*> m_plots;
         void initPlotPlayBack();
+        void deinitPlotPlayback();
 
         // bool check
         bool is_doubleClicked_with_timestamp = false;

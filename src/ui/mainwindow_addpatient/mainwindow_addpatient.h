@@ -43,6 +43,8 @@ namespace MyApp::UI::mainwindow_addpatient {
         // 病人数据库
         PatientDatabase *pd;
 
+        void createNewTable(int patient_id_diy);
+
     };
 } // MyApp::UI::mainwindow_addpatient
 

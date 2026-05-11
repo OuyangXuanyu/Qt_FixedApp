@@ -239,6 +239,9 @@ bool PatientDatabase::addPatient(
     if (true) {
         std::cout<<true<<std::endl;
     }
+    if (!exists) {
+        emit createNewTable(patient_id_diy);
+    }
 
     return true;
 }
@@ -278,7 +281,7 @@ void EachPatientDatabase::setANDget_info(const std::string &_name, const std::st
     name = _name;
     id = _id;
     infos.clear();
-    const QString sql = QString("SELECT test_id, test_time_start, test_time_duration FROM %1_%2").arg(name, id);
+    const QString sql = QString("SELECT test_id, test_time_start, test_time_duration FROM patient_%1").arg(id);
 
     sqlite3_stmt* stmt = nullptr;
     const int rc = sqlite3_prepare_v2(db, sql.toUtf8().constData(), -1, &stmt, nullptr);
@@ -303,3 +306,72 @@ void EachPatientDatabase::setANDget_info(const std::string &_name, const std::st
 
     sqlite3_finalize(stmt);
 }
+
+bool EachPatientDatabase::createNewTable(int patient_id_diy) {
+    if (!db) return false;
+
+    // 1. 将 int 转换为 std::string 确保安全
+    const std::string tableName = "patient_" + std::to_string(patient_id_diy);
+
+    // 2. 使用 %w，并传入 .c_str()
+    char* rawSql = sqlite3_mprintf(
+            "CREATE TABLE IF NOT EXISTS %w ("
+            "test_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "test_time_start INTEGER NOT NULL,"
+            "test_time_duration INTEGER NOT NULL"
+            ");",
+            tableName.c_str() // 这里必须是字符串指针
+        );
+
+    if (!rawSql) return false;
+
+    // 3. 执行 SQL (对于建表语句，直接使用 sqlite3_exec 更简洁)
+    char* zErrMsg = nullptr;
+    int rc = sqlite3_exec(db, rawSql, nullptr, nullptr, &zErrMsg);
+
+    // 4. 必须释放 mprintf 分配的内存
+    sqlite3_free(rawSql);
+
+    if (rc != SQLITE_OK) {
+        qDebug() << "[SQLite] Create table failed:" << zErrMsg;
+        sqlite3_free(zErrMsg);
+        return false;
+    }
+
+    return true;
+}
+
+bool EachPatientDatabase::add_testlist(std::string &p_name, std::string &p_id, std::string &start_time, std::string &duration_time) {
+    if (!db) return false;
+    QString sql = QString(
+        "INSERT INTO patient_%1 "
+        "(test_time_start, test_time_duration)"
+        "VALUES (?,?)"
+    ).arg(p_id);
+    sqlite3_stmt* stmt = nullptr;
+    int rc = sqlite3_prepare_v2(db, sql.toStdString().c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK || !stmt) {
+        qDebug() << "[SQLite] prepare failed:" << sqlite3_errmsg(db);
+        return false;
+    }
+
+    int idx = 1;
+    sqlite3_bind_text(stmt, idx++, start_time.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, idx++, duration_time.c_str(), -1, SQLITE_TRANSIENT);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        qDebug() << "[SQLite] step failed:" << sqlite3_errmsg(db);
+        sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_finalize(stmt);
+    if (true) {
+        std::cout<<true<<std::endl;
+    }
+    return true;
+
+
+
+}
+

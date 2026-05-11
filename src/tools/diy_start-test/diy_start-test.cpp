@@ -4,6 +4,12 @@
 
 #include "diy_start-test.h"
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
+qint64 getChronoMicrosecondsSinceEpoch();
+
 StartTest::StartTest(QWidget *parent, MyApp::UI::UiManager *ui_manager) : parent(parent), ui_manager(ui_manager){
     blfp = new BLFrameParser();  // 数据解析（串口+蓝牙统一使用）
     save_dir_path = [this]() {
@@ -13,36 +19,54 @@ StartTest::StartTest(QWidget *parent, MyApp::UI::UiManager *ui_manager) : parent
         + "_" + this->p_id
         + "/" + this->start_time;
     };
+    connect(blfp, &BLFrameParser::dataSave, this, &StartTest::saveData);
     // tcpSocket = new QTcpSocket(this);
     // tcpSocket->connectToHost("127.0.0.1", 5678);
 }
 
 StartTest::~StartTest() = default;
 
-bool StartTest::btn_pressed(const std::string &_name, const std::string &_id) {
-    p_name = _name;
-    p_id = _id;
+bool StartTest::btn_pressed(const std::string &_name, const std::string &_id, const bool start) {
+    if (start == true) {
+        p_name = _name;
+        p_id = _id;
 
-    // 时间戳确定
-    const QDateTime dt = QDateTime::currentDateTime();
-    start_time = dt
-        .toString("yyyyMMddHHmmss")
-        .toStdString();
-    start_time_s = dt.toSecsSinceEpoch();
+        // 时间戳确定
+        const QDateTime dt = QDateTime::currentDateTime();
+        start_time = dt
+                .toString("yyyyMMddHHmmss")
+                .toStdString();
+        start_time_s = dt.toSecsSinceEpoch();
 
-    const QString target_dir = QString::fromStdString(save_dir_path());
+        const QString target_dir = QString::fromStdString(save_dir_path());
 
-    if (!QDir().mkpath(target_dir)) {
-        QMessageBox::warning(nullptr, "错误", "创建路径失败");
-        return false;
+        if (!QDir().mkpath(target_dir)) {
+            QMessageBox::warning(nullptr, "错误", "创建路径失败");
+            return false;
+        }
+        test_stage = 0;
+
+        if (!openNewCsvFile()) {
+            return false;
+        }
+
+        // blfp->parserTimer.start();
+
+        return true;
+    } else {
+        disconnect(blfp, &BLFrameParser::dataSave, this, &StartTest::saveData);
+        closeCurrentCsvFile();
+        const QDateTime dt = QDateTime::currentDateTime();
+        end_time = dt
+            .toString("yyyyMMddHHmmss")
+            .toStdString();
+        duration_time = std::to_string((dt.toSecsSinceEpoch() - start_time_s));
+        emit finished_test_epd(p_name, p_id, start_time, duration_time);
+
+        // blfp->parserTimer.stop();
+
+        return true;
     }
-    test_stage = 0;
-
-    if (!openNewCsvFile()) {
-        return false;
-    }
-
-    return true;
 }
 
 void StartTest::test_interruption() {
@@ -59,17 +83,21 @@ void StartTest::parserData(const QByteArray &data){
     }
 }
 
-void StartTest::saveData(const QByteArray &data){
+void StartTest::saveData(QVector<DataFrame> batchSaveData){
     if (!csvStream) return;
-    const auto ch = reinterpret_cast<const float*>(data.constData());
-    (*csvStream)
-        << ch[0] << ","  // ICG
-        << ch[1] << ","  // PPG
-        << ch[2] << ","  // ECG
-        << ch[3] << ","  // AAA
-        << ch[4] << ","  // BBB
-        << ch[5] << ","  // CCC
-        << ch[6] << "\n"; // DDD
+    for (const auto&[data] : batchSaveData) {
+        // 3. 这里的 frame.data 就是你之前的 result_array
+        (*csvStream)
+            << data[0] << ","
+            << data[1] << ","
+            << data[2] << ","
+            << data[3] << ","
+            << data[4] << ","
+            << data[5] << ","
+            << data[6] << ","
+            << data[7] << "\n";
+    }
+
 
 }
 
@@ -86,7 +114,7 @@ bool StartTest::openNewCsvFile()
     closeCurrentCsvFile();
 
     const QString target_dir = QString::fromStdString(save_dir_path());
-    const QString filePath = target_dir + QString("/SourceData_%1.csv").arg(test_stage);
+    const QString filePath = target_dir + QString("/TestZhao_%1.csv").arg(test_stage);
 
     std::cout << filePath.toStdString() << std::endl;
 
@@ -99,7 +127,7 @@ bool StartTest::openNewCsvFile()
     csvStream = new QTextStream(csvFile);
 
     // CSV header（顺序固定）
-    *csvStream << "ICG,PPG,ECG,AAA,BBB,CCC,DDD\n";
+    *csvStream << "CH1,CH2,CH3,CH4,CH5,CH6,CH7,CH8\n";
 
     currentRowCount = 0;
     ++test_stage;
@@ -123,105 +151,174 @@ void StartTest::closeCurrentCsvFile()
 }
 
 BLFrameParser::BLFrameParser(QObject *parent) : QObject(parent){
-    setDataFrame(0xAA, 0xBB, 0xCC, 0xDD, 30);
-    setCommandFrame(0xAB, 0xBC, 0xCD, 0xDE, 6);
-}
-
-void BLFrameParser::setDataFrame(const uchar h1, const uchar h2, const uchar t1, const uchar t2, const int len) {
-    m_dataDef = {h1, h2, t1, t2, len};
-}
-
-void BLFrameParser::setCommandFrame(const uchar h1, const uchar h2, const uchar t1, const uchar t2, const int len) {
-    m_cmdDef = {h1, h2, t1, t2, len};
+    parserTimer.setInterval(1);
+    connect(&parserTimer, &QTimer::timeout, this, &BLFrameParser::parse);
+    m_totalBuffer.reserve(2048 * 2048);
+    m_processBuffer.reserve(2048 * 2048);
+    freshData.reserve(2048 * 2048);
+    for(int i=0; i<9; ++i) m_channelData.append(QVector<double>());
 }
 
 void BLFrameParser::appendInfo(const QByteArray &info) {
-    if (info.isEmpty())
-        return;
-    if (info.size() != 21)
-        return;
-
-    constexpr double VREF = 3.3;
-    constexpr double ADC_MAX = 16777215.0;  // 2^24 - 1
-
-    for (int i = 0; i < 7; ++i)
-    {
-        const int index = i * 3;
-
-        // 必须转 unsigned char，防止符号扩展
-        const uint32_t x0 = static_cast<unsigned char>(info[index]);
-        const uint32_t x1 = static_cast<unsigned char>(info[index + 1]);
-        const uint32_t x2 = static_cast<unsigned char>(info[index + 2]);
-        const uint32_t value = (x0 << 16) | (x1 << 8) | x2;
-        const double voltage = value / ADC_MAX * VREF;
-        emit test_esp32_data_signal(voltage, i);
-    }
+    // if (info.size() != 21)
+    //     return;
+    //
+    // constexpr double VREF = 3.3;
+    // constexpr double ADC_MAX = 16777215.0;  // 2^24 - 1
+    //
+    // for (int i = 0; i < 7; ++i)
+    // {
+    //     const int index = i * 3;
+    //
+    //     // 必须转 unsigned char，防止符号扩展
+    //     const uint32_t x0 = static_cast<unsigned char>(info[index]);
+    //     const uint32_t x1 = static_cast<unsigned char>(info[index + 1]);
+    //     const uint32_t x2 = static_cast<unsigned char>(info[index + 2]);
+    //     const uint32_t value = (x0 << 16) | (x1 << 8) | x2;
+    //     const double voltage = value / ADC_MAX * VREF;
+    //     emit test_esp32_data_signal(voltage, i);
+    // }
 
     // 最终形式
     // 看上来数据的格式
     // std::cout << info << std::endl;
     // std::cout << info.toHex(' ').toStdString() << "  len=" << info.size() << std::endl;
+    // std::cout << "len=" << info.size() << std::endl;
 
-    // m_totalBuffer.append(info);
-    // parse();
+    m_mutex.lock();
+    m_totalBuffer.append(info);
+    m_mutex.unlock();
+    parse();
 }
 
 void BLFrameParser::parse()
+// todo: 还有余量?
 {
-    while (m_totalBuffer.size() > 0) {
-        bool found = false;
-        // 先尝试解析数据包
-        if (m_totalBuffer.size() >= m_dataDef.totalLen) {
-            for (int i = 0; i <= m_totalBuffer.size() - m_dataDef.totalLen; ++i)
-            {
-                const auto p = reinterpret_cast<const uchar*>(m_totalBuffer.constData() + i);
-                if (p[0] == m_dataDef.head1 && p[1] == m_dataDef.head2 &&
-                    p[m_dataDef.totalLen-2] == m_dataDef.tail1 && p[m_dataDef.totalLen-1] == m_dataDef.tail2)
-                {
-                    // todo: connect dafaFrameParsed信号，进行plot和save操作
-                    /*
-                     *void Engine::insertDataByIndex(int index, float value)
-                     *{
-                     *    if (index < 0 || index >= m_plots.size()) {
-                     *        qWarning() << "Invalid plot index:" << index;
-                     *        return;
-                     *    }
-                     *    OscilloscopePlot* plot = m_plots.at(index);  // at() 有边界检查
-                     *    if (!plot) {
-                     *        qWarning() << "Null plot pointer at index:" << index;
-                     *        return;
-                     *    }
-                     *    plot->insertData(value);
-                     *}
-                     */
-
-                    emit dataFrameParsed(m_totalBuffer.mid(i + 2, m_dataDef.totalLen - 4)); // 去掉头尾
-                    m_totalBuffer.remove(i, m_dataDef.totalLen); // 整条删除
-                    found = true;
-                    break;
-                }
-            }
-        }
-        // 再尝试解析指令包
-        if (!found && m_totalBuffer.size() >= m_cmdDef.totalLen)
-        {
-            for (int i = 0; i <= m_totalBuffer.size() - m_cmdDef.totalLen; ++i)
-            {
-                const auto p = reinterpret_cast<const uchar*>(m_totalBuffer.constData() + i);
-                if (p[0] == m_cmdDef.head1 && p[1] == m_cmdDef.head2 &&
-                    p[m_cmdDef.totalLen-2] == m_cmdDef.tail1 && p[m_cmdDef.totalLen-1] == m_cmdDef.tail2)
-                {
-                    emit commandFrameParsed(m_totalBuffer.mid(i + 2, m_cmdDef.totalLen-4));
-                    m_totalBuffer.remove(i, m_cmdDef.totalLen);
-                    found = true;
-                    break;
-                }
-            }
-        }
-
-        if (!found) break;   // 再也找不到完整帧就退出，等待下次拼包
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        freshData.swap(m_totalBuffer);
     }
+
+    static double CH5_odd_judge = 0;
+    static double CH5_even_judge = 0;
+    static double CH6_odd_judge = 0;
+    static double CH6_even_judge = 0;
+    static int CH5_count_judge = 0;
+    static int CH6_count_judge = 0;
+
+    static bool CH5_judge = false;
+    static bool CH6_judge = false;
+
+    m_processBuffer.append(freshData);
+    freshData.clear();
+
+    while (m_processBuffer.contains("\r\n")) {
+        const int index = m_processBuffer.indexOf("\r\n");
+        QByteArray line = m_processBuffer.left(index).trimmed(); // 提取一行，如 "CH0:1.6500"
+        m_processBuffer.remove(0, index + 2); // 从缓冲区移除已处理的数据
+
+        // 解析字符串
+        QString strLine = QString::fromUtf8(line);
+        if (strLine.contains(":")) {
+            QStringList parts = strLine.split(":");
+            if (parts.size() == 2) {
+                const int chIdx = parts[0].mid(2).toInt(); // 提取 "CH0" 中的 "0"
+                const double val = parts[1].toDouble();    // 提取 "1.6500"
+
+                if (chIdx < 5) m_channelData[chIdx].append(val);
+                else {
+                    if (CH5_count_judge < 100 && chIdx == 5) {
+                        if (CH5_count_judge % 2 == 0) CH5_even_judge += val;
+                        else CH5_odd_judge += val;
+                        CH5_count_judge++;
+                        m_channelData[chIdx].append(0);
+                        m_channelData[chIdx].append(0);
+                        m_channelData[chIdx+1].append(0);
+                        m_channelData[chIdx+1].append(0);
+                    } else if (CH6_count_judge < 100 && chIdx == 6) {
+                        if (CH6_count_judge % 2 == 0) CH6_even_judge += val;
+                        else CH6_odd_judge += val;
+                        CH6_count_judge++;
+                        m_channelData[chIdx+1].append(0);
+                        m_channelData[chIdx+1].append(0);
+                        m_channelData[chIdx+2].append(0);
+                        m_channelData[chIdx+2].append(0);
+                    } else if (CH5_count_judge >= 100 && chIdx == 5) {
+                        if (CH5_count_judge % 2 == 0) {
+                            if (CH5_judge == true) {
+                                m_channelData[chIdx].append(val);
+                                m_channelData[chIdx].append(val);
+                            }
+                            else {
+                                m_channelData[chIdx + 1].append(val);
+                                m_channelData[chIdx + 1].append(val);
+                            }
+                        } else if (CH5_count_judge % 2 == 1) {
+                            if (CH5_judge == true) {
+                                m_channelData[chIdx + 1].append(val);
+                                m_channelData[chIdx + 1].append(val);
+                            }
+                            else {
+                                m_channelData[chIdx].append(val);
+                                m_channelData[chIdx].append(val);
+                            }
+                        }
+                    } else if (CH6_count_judge >= 100 && chIdx == 6) {
+                        if (CH6_count_judge % 2 == 0) {
+                            if (CH6_judge == true) {
+                                m_channelData[chIdx+1].append(val);
+                                m_channelData[chIdx+1].append(val);
+                            }
+                            else {
+                                m_channelData[chIdx+2].append(val);
+                                m_channelData[chIdx+2].append(val);
+                            }
+                        } else if (CH5_count_judge % 2 == 1) {
+                            if (CH6_judge == true) {
+                                m_channelData[chIdx+2].append(val);
+                                m_channelData[chIdx+2].append(val);
+                            }
+                            else {
+                                m_channelData[chIdx+1].append(val);
+                                m_channelData[chIdx+1].append(val);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (CH5_count_judge == 100) {
+            std::cout << "CH5达到100了" << std::endl;
+            CH5_judge = CH5_odd_judge<CH5_even_judge;
+        }
+        if (CH6_count_judge == 100) {
+            std::cout << "CH6达到100了" << std::endl;
+            CH6_judge = CH6_odd_judge<CH6_even_judge;
+        }
+
+        // 检查是否集齐了 10 组完整数据 (70个点)
+        bool ready = false;
+        for (int i = 0; i < 9; i++) {
+            ready = m_channelData[6].size() >= 10;
+        }
+        if (ready) {
+            emit test_esp32_data_signal(m_channelData); // 发送信号给绘图模块
+
+            // 清空缓冲区供下次收集
+            for(int i=0; i<9; ++i) m_channelData[i].clear();
+        }
+    }
+
+
+
 }
+
+// qint64 getChronoMicrosecondsSinceEpoch() {
+//     auto now = std::chrono::system_clock::now();
+//     auto duration = now.time_since_epoch();
+//     auto micros = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+//     return micros.count();
+// }
 
 
 

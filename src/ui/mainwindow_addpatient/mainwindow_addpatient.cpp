@@ -13,7 +13,7 @@ namespace MyApp::UI::mainwindow_addpatient {
     mainwindow_addpatient::mainwindow_addpatient(QWidget *parent, UiManager *ui_manager) : QWidget(parent), ui(new Ui::mainwindow_addpatient), ui_manager(ui_manager) {
         ui->setupUi(this);
         pd = new PatientDatabase(ui_manager->baseDir_AppData.toStdString());
-
+        connect(pd, &PatientDatabase::createNewTable, this, &mainwindow_addpatient::createNewTable);
         this->resize(ui_manager->screen_width / 2, ui_manager->screen_height / 1.5);
 
         // connect(ui->CKBox_Invasive_ICP, &QCheckBox::toggled, this, &mainwindow_addpatient::on_CKBox_Invasive_ICP_toggled);
@@ -135,6 +135,13 @@ namespace MyApp::UI::mainwindow_addpatient {
         const auto name = ui->Edit_Name->text();
         if (id.isEmpty() && name.isEmpty()) return;
         on_BTN_CheckInfo_clicked();
+    }
+    void mainwindow_addpatient::createNewTable(int patient_id_diy) {
+        EachPatientDatabase *epd = new EachPatientDatabase(ui_manager->baseDir_AppData.toStdString());
+        const bool is_success = epd->createNewTable(patient_id_diy);
+        if (!is_success) {
+            QMessageBox::warning(this, "错误", "创建表失败");
+        }
     }
 
 

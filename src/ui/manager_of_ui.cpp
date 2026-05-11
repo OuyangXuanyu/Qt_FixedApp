@@ -140,8 +140,6 @@ namespace MyApp::UI{
             page_login_dialog->deleteLater();
         }
 
-        // 和PyQt同样的问题 真操蛋
-        // page_mainwindow->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
         page_mainwindow->setAttribute(Qt::WA_TranslucentBackground, false);
         const QScreen *screen = page_mainwindow->screen();
         page_mainwindow->setGeometry(screen->geometry());

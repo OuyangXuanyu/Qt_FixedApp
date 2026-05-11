@@ -2,17 +2,32 @@
 // Created by Administrator on 26-1-15.
 //
 
+
+
 #include "diy_serial.h"
 
 #include <iostream>
 
+#include "../../ui/manager_of_ui.h"
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 SerialManager::SerialManager(QObject* parent) : QObject(parent)
 {
     serial = new QSerialPort(this);
+    serial->setReadBufferSize(2048 * 2048);
 }
 
 SerialManager::~SerialManager() {
     this->close();
+    delete serial;
+
+}
+
+void SerialManager::setTesting(const bool isTesting) {
+    m_isTesting = isTesting;
 }
 
 bool SerialManager::open(
@@ -23,6 +38,28 @@ bool SerialManager::open(
     const QSerialPort::Parity parity
     )
 {
+    {
+#ifdef Q_OS_WIN
+    // 换核
+
+        // 获取当前执行线程的句柄
+        HANDLE hThread = GetCurrentThread();
+
+        // 绑定到核心 10 (掩码 1 << 10)
+        DWORD_PTR mask = (1 << 10);
+        DWORD_PTR previousMask = SetThreadAffinityMask(hThread, mask);
+        if (previousMask != 0) {
+            qDebug() << "Serial Thread successfully pinned to Logical Core 10";
+        } else {
+            qDebug() << "Failed to set Affinity Mask. Error:" << GetLastError();
+        }
+        const DWORD coreNum = GetCurrentProcessorNumber();
+        qDebug() << "UI Thread is currently running on Logical Core:" << coreNum;
+
+        // 设置高优先级，这对于 3Mbps 采样非常关键
+        SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
+#endif
+    }
     serial->setPortName(portName);
     serial->setBaudRate(baudrate);
     serial->setDataBits(dataBits);
@@ -30,7 +67,6 @@ bool SerialManager::open(
     serial->setParity(parity);
 
     serial->setFlowControl(QSerialPort::NoFlowControl);
-
 
     if (!serial->open(QIODevice::ReadWrite)) {
         std::cout << "failed to open serial port" << std::endl;
@@ -44,13 +80,17 @@ bool SerialManager::open(
     connect(serial, &QSerialPort::errorOccurred, this, &SerialManager::onError);
 
     std::cout << "success to open serial port" << std::endl;
+    emit connectionSucceed();
     return true;
 }
 
 void SerialManager::close()
 {
-    if (serial && serial->isOpen())
+    if (serial && serial->isOpen()) {
         serial->close();
+        emit connectionLost("");
+    }
+    // delete serial;
 }
 
 QStringList SerialManager::serialGetPorts()
@@ -66,22 +106,25 @@ QStringList SerialManager::serialGetPorts()
 }
 
 void SerialManager::write(const QString& data) {
-    serial->write(data.toStdString().c_str());
-    // serial->write(data.toStdString().data());
+    const QByteArray hexData = QByteArray::fromHex(data.toLatin1());
+    serial->write(hexData);
 }
 
 void SerialManager::onReadyRead()
 {
-    buffer.append(serial->readAll());
+    // static QByteArray newData{};
 
-    while (buffer.contains('\n')) {
-        auto line = buffer.left(buffer.indexOf('\n')).trimmed();
-        buffer.remove(0, buffer.indexOf('\n') + 1);
-
-        // todo: 确实是否需要转换函数
-        emit dataReceived(line);
-        // emit dataReceived(QString::fromUtf8(line));
+    if (m_isTesting) {
+        QByteArray newData{};
+        while (serial->bytesAvailable() > 0) {
+            newData.append(serial->readAll());
+        }
+        emit dataReceived(newData);
+    } else {
+        serial->readAll();
     }
+
+
 }
 
 void SerialManager::onError(const QSerialPort::SerialPortError error)

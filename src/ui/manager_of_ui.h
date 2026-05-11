@@ -22,6 +22,8 @@
 #include "mainwindow_addpatient/mainwindow_addpatient.h"
 #include "mainwindow_searchpatient/mainwindow_searchpatient.h"
 #include "mainwindow_playbackdata/mainwindow_playbackdata.h"
+#include "mainwindow/serial_ui/mainwindow_serial.h"
+#include "./mainwindow/bottom_menu/mainwindow_bottom_menu.h"
 
 // === 前向声明（推荐，减少编译依赖）===
 namespace MyApp::UI::login_dialog {
@@ -29,6 +31,16 @@ namespace MyApp::UI::login_dialog {
 }
 namespace MyApp::UI::mainwindow {
     class mainwindow;
+}
+
+namespace MyApp::UI::mainwindow_serial {
+    class mainwindow_serial;
+}
+namespace MyApp::UI::mainwindow_bl {
+    class mainwindow_bl;
+}
+namespace MyApp::UI::mainwindow_bottom_menu {
+    class mainwindow_bottom_menu;
 }
 namespace MyApp::UI::mainwindow_addpatient {
     class mainwindow_addpatient;
@@ -91,7 +103,7 @@ namespace MyApp::UI {
             const std::string& timestampInfo = {}
         );
 
-    private:
+    public:
         // ===== 窗口实例 =====
         QPointer<login_dialog::login_dialog>                            page_login_dialog;
         QPointer<mainwindow::mainwindow>                                page_mainwindow;

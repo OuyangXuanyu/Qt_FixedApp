@@ -31,18 +31,35 @@ void PlaybackPlot::paintGL() {
 }
 
 bool PlaybackPlot::findSourceSignalPath(const uint32_t id, const std::string &name, const int timestamp, const uint8_t stage) {
-    source_signal_path;  // 组装路径
-    if (source_signal_path.isExist()) {
-        return true;
-    }
+    // source_signal_path;  // 组装路径
+    // if (source_signal_path.isExist()) {
+    //     return true;
+    // }
     return false;
 }
 
 bool PlaybackPlot::loadSourceSignalPath(const uint32_t start, const uint32_t length) {
-    try {
-        // 某个变量尝试写入内容(.f32)
-    }
-    catch (const std::exception &e) {
-        return false
-    }
+    // try {
+    //
+    // }
+    // catch (const std::exception &e) {
+    //     return false;
+    // }
+    return false;
+}
+
+PlaybackEngine::PlaybackEngine(QObject *parent) {
+
+}
+
+PlaybackEngine::~PlaybackEngine() {
+
+}
+
+void PlaybackEngine::addPlot(PlaybackPlot *plot) {
+
+}
+
+void PlaybackEngine::onTick() {
+
 }

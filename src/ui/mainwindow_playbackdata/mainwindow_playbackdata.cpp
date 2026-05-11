@@ -213,8 +213,42 @@ namespace MyApp::UI::mainwindow_playbackdata {
     }
 
     void mainwindow_playbackdata::initPlotPlayBack() {
-        m_playback_engine = new PlaybackEngine(this);
+        m_engine = new PlaybackEngine(this);
+        m_plots.clear();
 
+        auto attachPlot = [&](QWidget *placeholder) {
+            const auto layout = new QVBoxLayout(placeholder);
+            layout->setContentsMargins(0, 0, 0, 0);
+            layout->setSpacing(0);
+
+            const auto plot = new PlaybackPlot(placeholder);
+
+            plot->setAttribute(Qt::WA_NativeWindow, false);
+            plot->setAttribute(Qt::WA_PaintOnScreen, false);
+
+            plot->setUpdateBehavior(QOpenGLWidget::NoPartialUpdate);
+
+            layout->addWidget(plot);
+
+            // DANGER:
+            m_plots.push_back(plot);
+            m_engine->addPlot(plot);
+        };
+
+        attachPlot(ui->Plot_Playback_CH0);
+        attachPlot(ui->Plot_Playback_CH1);
+        attachPlot(ui->Plot_Playback_CH2);
+        attachPlot(ui->Plot_Playback_CH3);
+        attachPlot(ui->Plot_Playback_CH4);
+        attachPlot(ui->Plot_Playback_CH5);
+        attachPlot(ui->Plot_Playback_CH6);
+        attachPlot(ui->Plot_Playback_CH7);
+        // todo:
+
+    }
+
+    void mainwindow_playbackdata::deinitPlotPlayback() {
+        // todo:
     }
 
     void mainwindow_playbackdata::on_TBView_PatientRecord_doubleClicked(const QModelIndex &index) {

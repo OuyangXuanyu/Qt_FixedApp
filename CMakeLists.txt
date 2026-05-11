@@ -6,7 +6,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1/msvc2022_64")
+set(CMAKE_PREFIX_PATH "C:/Qt/6.10.2/msvc2022_64")
 
 find_package(OpenGL REQUIRED)
 find_package(Qt6 COMPONENTS
@@ -73,6 +73,21 @@ add_executable(Qt_Project_FixedApp src/main.cpp
 
         src/tools/diy_playback-plot/diy_playback-plot.cpp
         src/tools/diy_playback-plot/diy_playback-plot.h
+
+        src/tools/diy_ui_toast-notification/diy_ui_toast-notification.cpp
+        src/tools/diy_ui_toast-notification/diy_ui_toast-notification.h
+
+        src/ui/mainwindow/serial_ui/mainwindow_serial.cpp
+        src/ui/mainwindow/serial_ui/mainwindow_serial.h
+        src/ui/mainwindow/serial_ui/mainwindow_serial.ui
+
+        src/ui/mainwindow/bl_ui/mainwindow_bl.cpp
+        src/ui/mainwindow/bl_ui/mainwindow_bl.h
+        src/ui/mainwindow/bl_ui/mainwindow_bl.ui
+
+        src/ui/mainwindow/bottom_menu/mainwindow_bottom_menu.cpp
+        src/ui/mainwindow/bottom_menu/mainwindow_bottom_menu.h
+        src/ui/mainwindow/bottom_menu/mainwindow_bottom_menu.ui
 )
 target_link_libraries(Qt_Project_FixedApp
         Qt::Core
