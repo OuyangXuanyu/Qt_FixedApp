@@ -22,7 +22,7 @@ qint64 getChronoMicrosecondsSinceEpoch();
 void checkMyCore();
 
 namespace MyApp::UI::mainwindow {
-    mainwindow::mainwindow(QWidget *parent, UiManager *ui_manager) : QWidget(parent), ui(new Ui::mainwindow), ui_manager(std::move(ui_manager)) {
+    mainwindow::mainwindow(QWidget *parent, UiManager *ui_manager) : QWidget(parent), ui(new Ui::mainwindow), ui_manager(ui_manager) {
         ui->setupUi(this);
 
         checkMyCore();

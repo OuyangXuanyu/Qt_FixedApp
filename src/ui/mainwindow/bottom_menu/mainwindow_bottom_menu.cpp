@@ -151,7 +151,7 @@ namespace MyApp::UI::mainwindow_bottom_menu {
         ToastNotification::showMessage(parent_ptr, "开始扫描蓝牙", 2500);
 
         // parent_ptr->on_RBTN_Serial_clicked();
-        if (!window_blSet) return;
+        if (!window_blSet) initBlWindow();
         QPoint pos = ui->RBTN_Serial->mapToGlobal(QPoint(0, 0));
         pos.setY(pos.y() - window_blSet->height() - 2);
         window_blSet->move(pos);
@@ -164,7 +164,7 @@ namespace MyApp::UI::mainwindow_bottom_menu {
     void mainwindow_bottom_menu::on_RBTN_Serial_clicked(){
         // parent_ptr->on_RBTN_BL_clicked();
         ToastNotification::showMessage(parent_ptr, "开始扫描串口", 2500, parent_ptr->ui->Label_Welcome->width());
-        if (!window_serialSet) return;
+        if (!window_serialSet) initSerialWindow();
         QPoint pos = ui->RBTN_Serial->mapToGlobal(QPoint(0, 0));
         pos.setY(pos.y() - window_serialSet->height() - 2);
         window_serialSet->move(pos);
@@ -172,13 +172,15 @@ namespace MyApp::UI::mainwindow_bottom_menu {
         window_serialSet->activateWindow();
         if (parent_ptr->isSerialConnected) return;
         window_serialSet->scan();
+        std::cout<<"扫描串口"<<std::endl;
     }
 
     void mainwindow_bottom_menu::initSerialWindow() {
         if (!window_serialSet) {
             window_serialSet = new mainwindow_serial::mainwindow_serial(this, parent_ptr->ui_manager);
-            window_serialSet->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+            window_serialSet->setWindowFlags(Qt::Popup | Qt::WindowStaysOnTopHint);
         }
+        //
     }
 
     void mainwindow_bottom_menu::initBlWindow() {

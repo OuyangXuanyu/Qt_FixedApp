@@ -309,11 +309,11 @@ QPushButton:hover { background-color: #0000bf; }</string>
           </property>
           <property name="styleSheet">
            <string notr="true">QPushButton {
-                background-color: #3f3fff; color: white;
+                background-color: #ff3f3f; color: white;
                 border: none; padding: 10px 20px; border-radius: 8px;
                 font-weight: bold; font-size: 14px;
             }
-QPushButton:hover { background-color: #0000bf; }</string>
+QPushButton:hover { background-color: #bf0000; }</string>
           </property>
           <property name="text">
            <string>退出</string>
