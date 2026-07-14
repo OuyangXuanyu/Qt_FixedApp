@@ -47,3 +47,7 @@ cmake --build cmake-build-debug --parallel
 
 这些运行数据已通过 `.gitignore` 排除，不会提交到 GitHub。
 
+## 许可证
+
+本项目使用 [Apache License 2.0](LICENSE)。
+
