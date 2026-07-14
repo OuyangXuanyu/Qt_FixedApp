@@ -19,7 +19,7 @@
 #include <vector>
 #include <mutex>
 
-#include <gl/GL.h>
+#include <QtGui/qopengl.h>
 
 struct Vertex {
     float x;

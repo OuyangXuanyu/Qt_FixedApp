@@ -4,6 +4,9 @@
 
 #include "diy_start-test.h"
 
+#include <algorithm>
+#include <limits>
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
@@ -45,6 +48,7 @@ bool StartTest::btn_pressed(const std::string &_name, const std::string &_id, co
             return false;
         }
         test_stage = 0;
+        totalSavedRows = 0;
 
         if (!openNewCsvFile()) {
             return false;
@@ -54,7 +58,6 @@ bool StartTest::btn_pressed(const std::string &_name, const std::string &_id, co
 
         return true;
     } else {
-        disconnect(blfp, &BLFrameParser::dataSave, this, &StartTest::saveData);
         closeCurrentCsvFile();
         const QDateTime dt = QDateTime::currentDateTime();
         end_time = dt
@@ -86,6 +89,8 @@ void StartTest::parserData(const QByteArray &data){
 void StartTest::saveData(QVector<DataFrame> batchSaveData){
     if (!csvStream) return;
     for (const auto&[data] : batchSaveData) {
+        if (currentRowCount >= MAX_ROWS_PER_FILE && !openNewCsvFile())
+            return;
         // 3. 这里的 frame.data 就是你之前的 result_array
         (*csvStream)
             << data[0] << ","
@@ -95,10 +100,16 @@ void StartTest::saveData(QVector<DataFrame> batchSaveData){
             << data[4] << ","
             << data[5] << ","
             << data[6] << ","
-            << data[7] << "\n";
+            << data[7] << ","
+            << data[8] << "\n";
+        ++currentRowCount;
+        ++totalSavedRows;
     }
-
-
+    if (csvStream->status() != QTextStream::Ok) {
+        emit storageError(QStringLiteral("写入信号文件失败：%1").arg(currentFilePath));
+        return;
+    }
+    emit storageProgress(totalSavedRows, currentFilePath);
 }
 
 void StartTest::transmitData(const QByteArray &data){
@@ -115,11 +126,13 @@ bool StartTest::openNewCsvFile()
 
     const QString target_dir = QString::fromStdString(save_dir_path());
     const QString filePath = target_dir + QString("/TestZhao_%1.csv").arg(test_stage);
+    currentFilePath = filePath;
 
     std::cout << filePath.toStdString() << std::endl;
 
     csvFile = new QFile(filePath);
     if (!csvFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
+        emit storageError(QStringLiteral("无法创建信号文件：%1").arg(filePath));
         QMessageBox::warning(parent, "错误", "CSV 文件创建失败");
         return false;
     }
@@ -127,10 +140,12 @@ bool StartTest::openNewCsvFile()
     csvStream = new QTextStream(csvFile);
 
     // CSV header（顺序固定）
-    *csvStream << "CH1,CH2,CH3,CH4,CH5,CH6,CH7,CH8\n";
+    *csvStream << "CH1,CH2,CH3,CH4,CH5,CH6,CH7,CH8,CH9\n";
 
     currentRowCount = 0;
     ++test_stage;
+
+    emit storageProgress(totalSavedRows, currentFilePath);
 
     return true;
 }
@@ -296,13 +311,28 @@ void BLFrameParser::parse()
             CH6_judge = CH6_odd_judge<CH6_even_judge;
         }
 
-        // 检查是否集齐了 10 组完整数据 (70个点)
-        bool ready = false;
-        for (int i = 0; i < 9; i++) {
-            ready = m_channelData[6].size() >= 10;
-        }
+        // 前 8 个存储通道都集齐一批数据后，才同时绘图和落盘。
+        bool ready = true;
+        for (int channel = 0; channel < SIGNAL_CHANNEL_COUNT; ++channel)
+            ready = ready && m_channelData[channel].size() >= 10;
         if (ready) {
             emit test_esp32_data_signal(m_channelData); // 发送信号给绘图模块
+
+            constexpr int savedChannelCount = SIGNAL_CHANNEL_COUNT;
+            qsizetype frameCount = std::numeric_limits<qsizetype>::max();
+            for (int channel = 0; channel < savedChannelCount; ++channel)
+                frameCount = std::min(frameCount, m_channelData[channel].size());
+            if (frameCount > 0 && frameCount != std::numeric_limits<qsizetype>::max()) {
+                QVector<DataFrame> frames;
+                frames.reserve(frameCount);
+                for (qsizetype sample = 0; sample < frameCount; ++sample) {
+                    DataFrame frame{};
+                    for (int channel = 0; channel < savedChannelCount; ++channel)
+                        frame.data[channel] = static_cast<float>(m_channelData[channel][sample]);
+                    frames.append(frame);
+                }
+                emit dataSave(frames);
+            }
 
             // 清空缓冲区供下次收集
             for(int i=0; i<9; ++i) m_channelData[i].clear();

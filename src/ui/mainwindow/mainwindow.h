@@ -8,6 +8,8 @@
 #include <iostream>
 #include <QWidget>
 #include <QThread>
+#include <QElapsedTimer>
+#include <QTimer>
 #include "../manager_of_ui.h"
 
 #include "../../tools/diy_serial/diy_serial.h"
@@ -66,9 +68,17 @@ namespace MyApp::UI::mainwindow {
         bool isTesting = false;
 
         SerialManager *serialMgr;
-        BluetoothManager *blMgr;
 
+
+        BluetoothManager *blMgr;
         QList<QBluetoothDeviceInfo> BLscannedDevices;
+
+        // using BleDeviceInfo = DiyBlWinRt::BleDeviceInfo;
+        // DiyBlWinRt::BluetoothManager *blMgr;
+        //
+        // QList<BleDeviceInfo> BLscannedDevices;
+
+
         QPointer<mainwindow_bottom_menu::mainwindow_bottom_menu> bottom_menu = nullptr;
 
     protected:
@@ -89,6 +99,7 @@ namespace MyApp::UI::mainwindow {
         // void on_RBTN_Serial_clicked();
 
         void onBLDevicesFound(const QList<QBluetoothDeviceInfo> &devices);
+        // void onBLDevicesFound(const QList<BleDeviceInfo> &devices);
         void onBLStatus(const QString &msg);
         void set_isBLConnected(bool _info);
         void onSerialConnected();
@@ -101,6 +112,27 @@ namespace MyApp::UI::mainwindow {
     private:
         Ui::mainwindow *ui;
         UiManager *ui_manager;
+
+        enum class MonitorState {
+            Waiting,
+            Ready,
+            Recording,
+            Warning
+        };
+        MonitorState monitorState = MonitorState::Waiting;
+        QTimer monitorUiTimer;
+        QElapsedTimer monitorRecordingElapsed;
+        QElapsedTimer monitorBatchElapsed;
+        QElapsedTimer monitorLastDataElapsed;
+        double monitorSmoothedRate = 0.0;
+        bool monitorHardWarning = false;
+
+        void initializeMonitorUi();
+        void setMonitorState(MonitorState state, const QString &detail = {});
+        void updateMonitorDeviceState();
+        void updateMonitorSignalData(const QList<QVector<double>> &channels);
+        void updateMonitorStorage(quint64 rows, const QString &filePath);
+        static QString formatMonitorDuration(qint64 seconds);
 
         QButtonGroup *rbtnGroup_connection;
 

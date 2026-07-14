@@ -142,7 +142,9 @@ namespace MyApp::UI{
 
         page_mainwindow->setAttribute(Qt::WA_TranslucentBackground, false);
         const QScreen *screen = page_mainwindow->screen();
+        // page_mainwindow->setGeometry(screen->availableGeometry());
         page_mainwindow->setGeometry(screen->geometry());
+        page_mainwindow->setWindowState(Qt::WindowFullScreen);
         page_mainwindow->showFullScreen();
 
         screen_width = page_mainwindow->width();

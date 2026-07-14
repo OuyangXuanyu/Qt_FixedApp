@@ -53,7 +53,7 @@ OscilloscopePlot::~OscilloscopePlot() {
     m_vao.destroy();
     m_vbo.destroy();
     doneCurrent();
-    delete this;
+    // delete this;
 }
 
 void OscilloscopePlot::initializeGL()

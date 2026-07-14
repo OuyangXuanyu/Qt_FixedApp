@@ -271,9 +271,48 @@ int PatientDatabase::getNextPatientID() {
 }
 
 EachPatientDatabase::EachPatientDatabase(const std::string &appPath) : appPath(appPath) {
-    const std::string dbPath = this->appPath + "/each_P_data/count_patient_test.db";
-    if (sqlite3_open(dbPath.c_str(), &db) != SQLITE_OK) {
-        throw std::runtime_error("Cannot open database");
+    namespace fs = std::filesystem;
+
+    const fs::path dataDir = fs::path(this->appPath) / "each_P_data";
+    std::error_code directoryError;
+    fs::create_directories(dataDir, directoryError);
+    if (directoryError) {
+        throw std::runtime_error(
+            "Cannot create database directory: " + dataDir.string()
+            + " (" + directoryError.message() + ")"
+        );
+    }
+
+    const fs::path dbPath = dataDir / "count_patient_test.db";
+    const int rc = sqlite3_open_v2(
+        dbPath.string().c_str(),
+        &db,
+        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+        nullptr
+    );
+    if (rc != SQLITE_OK) {
+        const std::string sqliteError = db
+            ? sqlite3_errmsg(db)
+            : sqlite3_errstr(rc);
+        if (db) {
+            sqlite3_close(db);
+            db = nullptr;
+        }
+        throw std::runtime_error(
+            "Cannot open database: " + dbPath.string()
+            + " (" + sqliteError + ")"
+        );
+    }
+}
+
+EachPatientDatabase::~EachPatientDatabase() {
+    close();
+}
+
+void EachPatientDatabase::close() {
+    if (db) {
+        sqlite3_close(db);
+        db = nullptr;
     }
 }
 

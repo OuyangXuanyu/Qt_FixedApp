@@ -113,6 +113,11 @@
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <item>
           <widget class="QLabel" name="Label_AppName">
+           <property name="font">
+            <font>
+             <pointsize>20</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>AppName</string>
            </property>
@@ -123,6 +128,11 @@
          </item>
          <item>
           <widget class="QLabel" name="Label_AppVersion">
+           <property name="font">
+            <font>
+             <pointsize>20</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>AppVersion</string>
            </property>
@@ -134,24 +144,429 @@
         </layout>
        </item>
        <item>
-        <layout class="QVBoxLayout" name="VLayout_InfoALL">
-         <item>
-          <widget class="QLabel" name="Label_Welcome">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
+        <widget class="QStackedWidget" name="Stack_MonitorState">
+         <property name="styleSheet">
+          <string notr="true">QStackedWidget { background: #202020; color: #e8e8e8; }
+QLabel#Label_WaitingState, QLabel#Label_ReadyState, QLabel#Label_RecordingState, QLabel#Label_WarningState { color: #8f9a9f; font-size: 13px; font-weight: 600; }
+QLabel#Label_WaitingTitle, QLabel#Label_ReadyTitle { color: #eeeeee; font-size: 24px; font-weight: 600; }
+QLabel#Label_WaitingHint, QLabel#Label_ReadyHint { color: #8a8a8a; font-size: 13px; }
+QLabel#Label_ReadyDevice, QLabel#Label_ReadyPatient { color: #d8d8d8; font-size: 15px; }
+QLabel#Label_RecordPatient { color: #d8d8d8; font-size: 15px; }
+QLabel#Label_RecordDuration { color: #f0f0f0; font: 600 28px Menlo; }
+QLabel#Label_RmsValue, QLabel#Label_PeakValue, QLabel#Label_RateValue, QLabel#Label_QualityValue { color: #dddddd; font: 600 22px Menlo; }
+QLabel#Label_RmsName, QLabel#Label_PeakName, QLabel#Label_RateName, QLabel#Label_QualityName, QLabel#Label_RecordRowsName, QLabel#Label_RecordPathName { color: #888888; font-size: 12px; }
+QLabel#Label_RecordRows, QLabel#Label_RecordPath { color: #c8c8c8; font-size: 12px; }
+QFrame#Line_RecordTop, QFrame#Line_RecordMiddle { color: #3a3a3a; }
+QLabel#Label_WarningTitle { color: #e1b955; font-size: 22px; font-weight: 600; }
+QLabel#Label_WarningDetail { color: #b8b8b8; font-size: 13px; }</string>
+         </property>
+         <property name="currentIndex">
+          <number>3</number>
+         </property>
+         <widget class="QWidget" name="Page_MonitorWaiting">
+          <layout class="QVBoxLayout" name="VLayout_MonitorWaiting">
+           <property name="leftMargin">
+            <number>12</number>
            </property>
-           <property name="text">
-            <string>TextLabel</string>
+           <property name="topMargin">
+            <number>12</number>
            </property>
-           <property name="alignment">
-            <set>Qt::AlignmentFlag::AlignCenter</set>
+           <property name="rightMargin">
+            <number>12</number>
            </property>
-          </widget>
-         </item>
-        </layout>
+           <property name="bottomMargin">
+            <number>12</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="Label_WaitingState">
+             <property name="text">
+              <string>待机</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="Spacer_WaitingTop">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>120</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_WaitingTitle">
+             <property name="text">
+              <string>等待采集设备</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignmentFlag::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_WaitingHint">
+             <property name="text">
+              <string>请从底部菜单连接蓝牙或串口设备</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignmentFlag::AlignCenter</set>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="Spacer_WaitingBottom">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>300</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="Page_MonitorReady">
+          <layout class="QVBoxLayout" name="VLayout_MonitorReady">
+           <property name="leftMargin">
+            <number>12</number>
+           </property>
+           <property name="topMargin">
+            <number>12</number>
+           </property>
+           <property name="rightMargin">
+            <number>12</number>
+           </property>
+           <property name="bottomMargin">
+            <number>12</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="Label_ReadyState">
+             <property name="text">
+              <string>设备就绪</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="Spacer_ReadyTop">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>80</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_ReadyTitle">
+             <property name="text">
+              <string>可以开始监护</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignmentFlag::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_ReadyDevice">
+             <property name="text">
+              <string>采集设备：已连接</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignmentFlag::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_ReadyPatient">
+             <property name="text">
+              <string>患者：未选择</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignmentFlag::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_ReadyHint">
+             <property name="text">
+              <string>输入患者姓名或 ID，然后点击“开始测试”</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignmentFlag::AlignCenter</set>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="Spacer_ReadyBottom">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>260</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="Page_MonitorRecording">
+          <layout class="QVBoxLayout" name="VLayout_MonitorRecording">
+           <property name="spacing">
+            <number>12</number>
+           </property>
+           <property name="leftMargin">
+            <number>12</number>
+           </property>
+           <property name="topMargin">
+            <number>12</number>
+           </property>
+           <property name="rightMargin">
+            <number>12</number>
+           </property>
+           <property name="bottomMargin">
+            <number>12</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="Label_RecordingState">
+             <property name="text">
+              <string>● 正在记录</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_RecordPatient">
+             <property name="text">
+              <string>未选择患者</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_RecordDuration">
+             <property name="text">
+              <string>00:00:00</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignmentFlag::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="Line_RecordTop">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QGridLayout" name="Grid_RecordMetrics">
+             <property name="horizontalSpacing">
+              <number>18</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>6</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QLabel" name="Label_RmsName">
+               <property name="text">
+                <string>CH1 RMS</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLabel" name="Label_PeakName">
+               <property name="text">
+                <string>CH1 峰峰值</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="Label_RmsValue">
+               <property name="text">
+                <string>--</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLabel" name="Label_PeakValue">
+               <property name="text">
+                <string>--</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="Label_RateName">
+               <property name="text">
+                <string>采样率</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QLabel" name="Label_QualityName">
+               <property name="text">
+                <string>数据有效性</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="Label_RateValue">
+               <property name="text">
+                <string>-- Hz</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QLabel" name="Label_QualityValue">
+               <property name="text">
+                <string>-- %</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="Line" name="Line_RecordMiddle">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_RecordRowsName">
+             <property name="text">
+              <string>已保存样本</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_RecordRows">
+             <property name="text">
+              <string>0</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_RecordPathName">
+             <property name="text">
+              <string>当前文件</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_RecordPath">
+             <property name="text">
+              <string>等待创建记录文件</string>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="Spacer_RecordBottom">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>180</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="Page_MonitorWarning">
+          <layout class="QVBoxLayout" name="VLayout_MonitorWarning">
+           <property name="leftMargin">
+            <number>15</number>
+           </property>
+           <property name="topMargin">
+            <number>12</number>
+           </property>
+           <property name="rightMargin">
+            <number>12</number>
+           </property>
+           <property name="bottomMargin">
+            <number>12</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="Label_WarningState">
+             <property name="text">
+              <string>监护中断</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="Spacer_WarningTop">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>100</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_WarningTitle">
+             <property name="text">
+              <string>请检查采集状态</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignmentFlag::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Label_WarningDetail">
+             <property name="text">
+              <string>设备连接或数据保存出现异常</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignmentFlag::AlignCenter</set>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="Spacer_WarningBottom">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>280</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </widget>
        </item>
       </layout>
      </item>

@@ -51,6 +51,7 @@ namespace MyApp::UI::login_dialog {
             emit loginSuccess(accountInfo, usertype_str, ok);
         }else {
             QMessageBox::warning(this, "错误", "用户名与密码不匹配，请检查重试！");
+            // emit loginSuccess(accountInfo, usertype_str, ok);
         }
     }
 

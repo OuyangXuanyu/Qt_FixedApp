@@ -163,7 +163,8 @@ namespace MyApp::UI::mainwindow_bottom_menu {
     }
     void mainwindow_bottom_menu::on_RBTN_Serial_clicked(){
         // parent_ptr->on_RBTN_BL_clicked();
-        ToastNotification::showMessage(parent_ptr, "开始扫描串口", 2500, parent_ptr->ui->Label_Welcome->width());
+        ToastNotification::showMessage(parent_ptr, "开始扫描串口", 2500,
+                                       parent_ptr->ui->Stack_MonitorState->width());
         if (!window_serialSet) initSerialWindow();
         QPoint pos = ui->RBTN_Serial->mapToGlobal(QPoint(0, 0));
         pos.setY(pos.y() - window_serialSet->height() - 2);

@@ -36,6 +36,7 @@ ToastNotification::ToastNotification(QWidget *parent, const QString &message, in
     // 3. 初始位置计算
     m_label->setFixedHeight(40);
     m_label->setFixedWidth(width);
+    adjustSize();
     updatePosition(width);
 
     // 4. 启动动画流程
@@ -49,10 +50,21 @@ void ToastNotification::showMessage(QWidget *parent, const QString &message, con
 
 void ToastNotification::updatePosition(const int widther) {
     if (parentWidget()) {
-        // 相对于父窗口右上角
+        Q_UNUSED(widther);
+
+        // 相对于父窗口右上角，并确保提示框始终落在当前屏幕内。
         const QPoint parentGlobalPos = parentWidget()->mapToGlobal(QPoint(0, 0));
-        const int x = parentGlobalPos.x() + parentWidget()->width() - width() - widther + 90; // 靠右偏移 30
-        const int y = parentGlobalPos.y() - 10; // 距离顶部 50
+        int x = parentGlobalPos.x() + parentWidget()->width() - width() - 20;
+        int y = parentGlobalPos.y() + 20;
+
+        QScreen *screen = parentWidget()->screen();
+        if (!screen)
+            screen = QGuiApplication::screenAt(parentGlobalPos);
+        if (screen) {
+            const QRect available = screen->availableGeometry();
+            x = qBound(available.left(), x, available.right() - width() + 1);
+            y = qBound(available.top(), y, available.bottom() - height() + 1);
+        }
         move(x, y);
     }
 }

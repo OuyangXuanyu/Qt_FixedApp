@@ -4,6 +4,11 @@
 
 #include "diy_bl.h"
 
+#if QT_CONFIG(permissions)
+#include <QCoreApplication>
+#include <QPermissions>
+#endif
+
 // 蓝牙扫描类
 BluetoothScanner::BluetoothScanner(QObject *parent) : QObject(parent) {
     agent = new QBluetoothDeviceDiscoveryAgent(this);
@@ -18,6 +23,22 @@ BluetoothScanner::~BluetoothScanner() {
 }
 
 void BluetoothScanner::startScan() {
+#if QT_CONFIG(permissions)
+    QBluetoothPermission permission;
+    permission.setCommunicationModes(QBluetoothPermission::Access);
+
+    switch (qApp->checkPermission(permission)) {
+        case Qt::PermissionStatus::Undetermined:
+            qApp->requestPermission(permission, this, &BluetoothScanner::startScan);
+            return;
+        case Qt::PermissionStatus::Denied:
+            emit scanError(tr("Bluetooth permission was denied."));
+            return;
+        case Qt::PermissionStatus::Granted:
+            break;
+    }
+#endif
+
     devices.clear();
     agent->start(QBluetoothDeviceDiscoveryAgent::LowEnergyMethod);
 }

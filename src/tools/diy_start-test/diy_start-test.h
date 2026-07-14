@@ -14,8 +14,10 @@
 
 // namespace MyApp::UI{ class UiManager; }
 
+inline constexpr int SIGNAL_CHANNEL_COUNT = 9;
+
 struct DataFrame {
-    float data[8];
+    float data[SIGNAL_CHANNEL_COUNT];
 };
 Q_DECLARE_METATYPE(DataFrame)
 
@@ -42,6 +44,8 @@ public:
 
 signals:
     void finished_test_epd(std::string& p_name, std::string& p_id, std::string& start_time, std::string& duration_time);
+    void storageProgress(quint64 savedRows, const QString &filePath);
+    void storageError(const QString &message);
 
 private:
     bool openNewCsvFile();
@@ -61,14 +65,16 @@ private:
 
     std::function<std::string()> save_dir_path;
 
-    static constexpr int CHANNEL_COUNT = 7;  // todo
+    static constexpr int CHANNEL_COUNT = SIGNAL_CHANNEL_COUNT;
     static constexpr int SAMPLE_RATE_HZ = 1000;
     static constexpr int MAX_DURATION_SEC = 20 * 60; // 20 min
     static constexpr quint64 MAX_ROWS_PER_FILE = SAMPLE_RATE_HZ * MAX_DURATION_SEC; // 1,200,000
     quint64 currentRowCount = 0;
+    quint64 totalSavedRows = 0;
 
     QFile *csvFile{nullptr};
     QTextStream *csvStream{nullptr};
+    QString currentFilePath;
 
     QVector<float> txBuffer;
     // QTcpSocket *tcpSocket{nullptr};

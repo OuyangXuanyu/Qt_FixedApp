@@ -56,7 +56,7 @@ class EachPatientDatabase : public QObject {
     Q_OBJECT
 public:
     explicit EachPatientDatabase(const std::string& appPath);
-    // ~EachPatientDatabase();
+    ~EachPatientDatabase() override;
 
     void setANDget_info(const std::string& _name, const std::string& _id, QVector<QStringList>& infos);
     bool createNewTable(int patient_id_diy);

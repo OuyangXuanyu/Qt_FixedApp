@@ -11,7 +11,7 @@
 #include <QRandomGenerator>
 #include <vector>
 
-#include <gl/GL.h>
+#include <QtGui/qopengl.h>
 
 class PlaybackPlot : public QOpenGLWidget, protected QOpenGLFunctions
 {
