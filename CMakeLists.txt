@@ -38,6 +38,7 @@ find_package(Qt6 COMPONENTS
         SerialPort
         Bluetooth
         Network
+        Multimedia
         REQUIRED)
 
 if (APPLE)
@@ -94,17 +95,25 @@ qt_add_executable(Qt_Project_FixedApp ${APP_EXECUTABLE_TYPE} src/main.cpp
 
         src/tools/diy_bl/diy_bl.cpp
         src/tools/diy_bl/diy_bl.h
-#        src/tools/diy_bl/diy_bl_cursor.cpp
-#        src/tools/diy_bl/diy_bl_cursor.h
 
         src/tools/diy_start-test/diy_start-test.cpp
         src/tools/diy_start-test/diy_start-test.h
+
+        src/tools/diy_signal-data/diy_signal-data.h
 
         src/tools/diy_playback-plot/diy_playback-plot.cpp
         src/tools/diy_playback-plot/diy_playback-plot.h
 
         src/tools/diy_ui_toast-notification/diy_ui_toast-notification.cpp
         src/tools/diy_ui_toast-notification/diy_ui_toast-notification.h
+
+        src/tools/diy_audio/diy_audio.cpp
+        src/tools/diy_audio/diy_audio.h
+
+        src/tools/diy_signal-analysis/diy_signal-analysis.cpp
+        src/tools/diy_signal-analysis/diy_signal-analysis.h
+
+        resources/resources.qrc
 
         src/ui/mainwindow/serial_ui/mainwindow_serial.cpp
         src/ui/mainwindow/serial_ui/mainwindow_serial.h
@@ -140,6 +149,7 @@ target_link_libraries(Qt_Project_FixedApp
         Qt6::SerialPort
         Qt6::Bluetooth
         Qt6::Network
+        Qt6::Multimedia
         OpenGL::GL
         $<$<BOOL:${WIN32}>:windowsapp>
 )
@@ -177,7 +187,7 @@ if (WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
                 "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll"
                 "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins/platforms/")
     endif ()
-    foreach (QT_LIB Core Gui Widgets OpenGLWidgets OpenGL Bluetooth SerialPort Network)
+    foreach (QT_LIB Core Gui Widgets OpenGLWidgets OpenGL Bluetooth SerialPort Network Multimedia)
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy
                 "${QT_INSTALL_PATH}/bin/Qt6${QT_LIB}${DEBUG_SUFFIX}.dll"

@@ -31,10 +31,22 @@ namespace MyApp::UI::mainwindow {
         ui->setupUi(this);
         initializeMonitorUi();
 
+        // 初始化警报声音管理器
+        alarmAudioManager = new AlarmAudioManager(this);
+
         checkMyCore();
 
         // 初始化开始测试类
         st = new StartTest(this, ui_manager);
+
+        // 保留最近 10 s 的 9 通道软件数据，每 5 s 执行一次分析示例。
+        signalAnalysisManager = new SignalAnalysisManager(this);
+        signalAnalysisManager->configureHistory(200, 10);
+        signalAnalysisManager->setAnalysisInterval(5000);
+        connect(st->blfp, &BLFrameParser::dataSave,
+                signalAnalysisManager, &SignalAnalysisManager::appendFrames);
+        connect(st->blfp, &BLFrameParser::demultiplexCalibrationCompleted,
+                signalAnalysisManager, &SignalAnalysisManager::start);
 
         // 初始化绘图区域
         initPlots();
@@ -125,7 +137,8 @@ namespace MyApp::UI::mainwindow {
         bottom_menu->show(); // 确保它是显示状态
     }
     mainwindow::~mainwindow() {
-        m_engine->stop();
+        if (m_engine)
+            m_engine->stop();
         if (serial_thread->isRunning()) {
             serial_thread->quit();
             serial_thread->wait();
@@ -188,33 +201,30 @@ namespace MyApp::UI::mainwindow {
 
         if (bottom_menu) {
             bottom_menu->updatePosition();
-            qDebug() << "1";
         }
     }
 
-    void mainwindow::initializeMonitorUi() {
+    void mainwindow::initializeMonitorUi() {  // 处理右侧监视区域画面
         ui->Label_AppName->setText(QStringLiteral("FixedApp"));  // todo:
         ui->Label_AppVersion->setText(QStringLiteral("v1.0"));  // todo:
         setMonitorState(MonitorState::Waiting);
 
-        monitorUiTimer.setInterval(1000);
+        monitorUiTimer.setInterval(500);  // danger: 这里做调整
         connect(&monitorUiTimer, &QTimer::timeout, this, [this] {
             if (!isTesting || !monitorRecordingElapsed.isValid())
                 return;
 
-            ui->Label_RecordDuration->setText(
-                formatMonitorDuration(monitorRecordingElapsed.elapsed() / 1000));
+            ui->Label_RecordDuration->setText(formatMonitorDuration(monitorRecordingElapsed.elapsed() / 1000));
 
             if (!monitorHardWarning && monitorLastDataElapsed.isValid()
                 && monitorLastDataElapsed.elapsed() > 2500) {
-                setMonitorState(MonitorState::Warning,
-                                QStringLiteral("超过 2.5 秒未收到完整数据，请检查采集链路"));
+                setMonitorState(MonitorState::Warning, QStringLiteral("超过 2.5 秒未收到完整数据，请检查采集链路"));
             }
         });
         monitorUiTimer.start();
     }
 
-    void mainwindow::setMonitorState(const MonitorState state, const QString &detail) {
+    void mainwindow::setMonitorState(const MonitorState state, const QString &detail) {  // 监视器的四个状态机设置
         monitorState = state;
         switch (state) {
             case MonitorState::Waiting:
@@ -230,6 +240,8 @@ namespace MyApp::UI::mainwindow {
                 ui->Label_WarningDetail->setText(
                     detail.isEmpty() ? QStringLiteral("设备连接或数据保存出现异常") : detail);
                 ui->Stack_MonitorState->setCurrentWidget(ui->Page_MonitorWarning);
+                break;
+            default:
                 break;
         }
     }
@@ -458,15 +470,20 @@ namespace MyApp::UI::mainwindow {
                 setMonitorState(MonitorState::Warning, QStringLiteral("无法建立数据记录文件"));
                 return;
             }
+
+            signalAnalysisManager->clear();
+
+            isTesting = true;
+            QMetaObject::invokeMethod(serialMgr, "setTesting", Qt::QueuedConnection, Q_ARG(bool, isTesting));
+
             // step5. 绘图引擎start
             m_engine->start();
             // step6. 蓝牙发送"START"指令 / 串口
             if (isBLConnected) blMgr->write(QByteArrayLiteral("START"));
-            if (isSerialConnected) serialMgr->write(QStringLiteral("AA169000A6FF"));
+            if (isSerialConnected) emit writeSerial(QStringLiteral("AA169000A6FF"));
             // step7. 修改各个按键的状态
             bottom_menu->ui->BTN_Patient_AddANDUpdate->setEnabled(false);
             bottom_menu->ui->BTN_Patient_StartTest->setText(QStringLiteral("停止测试"));
-            isTesting = true;
             monitorHardWarning = false;
             ui->Label_RecordPatient->setText(
                 QStringLiteral("%1  ·  ID %2")
@@ -479,12 +496,12 @@ namespace MyApp::UI::mainwindow {
             monitorRecordingElapsed.restart();
             monitorLastDataElapsed.invalidate();
             setMonitorState(MonitorState::Recording);
-            QMetaObject::invokeMethod(serialMgr, "setTesting", Qt::QueuedConnection, Q_ARG(bool, isTesting));
             qint64 micros = getChronoMicrosecondsSinceEpoch();
             qDebug() << "Chrono timestamp (μs):" << micros;
 
         } else {
             isTesting = false;
+            signalAnalysisManager->stop();
             QMetaObject::invokeMethod(serialMgr, "setTesting", Qt::QueuedConnection, Q_ARG(bool, isTesting));
             // Step1. 断开signal
             qint64 micros = getChronoMicrosecondsSinceEpoch();
@@ -513,27 +530,11 @@ namespace MyApp::UI::mainwindow {
 
     // 测试按钮
     void mainwindow::on_BTN_Test_clicked() {
-        // std::cout << "btn was pressed" << std::endl;
-        //
-        // // // 测试：发送START到蓝牙端
-        // // if (isBLConnected) blMgr->write(QByteArrayLiteral("START"));
-        // test_timer.setInterval(25);
-        // connect(&test_timer, &QTimer::timeout, this, &mainwindow::test_generate_data);
-        // test_timer.start();
-        // // m_engine->start();
-        if (isSerialConnected) {
-            // serialMgr->write("73");
-            serialMgr->write(QStringLiteral("AA169000A6FF"));
-            // bottom_menu->ui->StatusBar_Label->setText(QStringLiteral("发送启动指令成功"));  // todo: danger:
-            // ui->BTN_Patient_StartTest->setEnabled(true);
-        } else {
-            // bottom_menu->ui->StatusBar_Label->setText(QStringLiteral("串口未开启，发送启动指令失败"));  // todo: danger:
-        }
+        alarmAudioManager->play(AlarmAudioManager::AlarmType::GeneralWarning, false);
     }
 
     // 退出按钮
     void mainwindow::on_BTN_EXIT_clicked() {
-        std::cout << 1231133123 << std::endl;
         this->close();
     }
 
@@ -557,7 +558,6 @@ namespace MyApp::UI::mainwindow {
 
             layout->addWidget(plot);
 
-            // DANGER:
             m_plots.push_back(plot);
             m_engine->addPlot(plot);
         };
@@ -608,7 +608,7 @@ namespace MyApp::UI::mainwindow {
     }
 
     // void mainwindow::test_esp32_data_draw(const float *result_array) {
-    void mainwindow::test_esp32_data_draw(QList<QVector<double>> &newData) {
+    void mainwindow::test_esp32_data_draw(const QList<QVector<double>> &newData) {
         updateMonitorSignalData(newData);
         if (newData.isEmpty() || newData[0].isEmpty()) return;
 

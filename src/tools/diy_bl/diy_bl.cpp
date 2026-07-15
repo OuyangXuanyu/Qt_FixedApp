@@ -181,11 +181,24 @@ void BluetoothManager::write(const QByteArray &data)
     service->writeCharacteristic(txChar, data);
 }
 
-void BluetoothManager::onCharacteristicChanged(
-    const QLowEnergyCharacteristic &, const QByteArray &value)
+void BluetoothManager::onCharacteristicChanged(const QLowEnergyCharacteristic &, const QByteArray &value)
 {
     emit dataReceived(value);
-    // std::cout << QString::fromUtf8(value).toStdString() << std::endl;
+    return;
+
+    // std::cout << value.toHex(' ').toStdString() << std::endl;
+
+#ifdef Q_OS_WIN
+    std::cout << QString::fromUtf8(value).toStdString() << std::endl;
+#endif
+
+#ifdef Q_OS_APPLE
+    QByteArray printable = value;
+    printable.replace("\r\n", "\n");
+    std::cout.write(printable.constData(), printable.size());
+    std::cout.flush();
+#endif
+
 }
 
 void BluetoothManager::disconnectDevice()

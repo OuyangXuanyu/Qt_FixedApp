@@ -10,16 +10,10 @@
 #include <QDir>
 #include <QTcpSocket>
 #include <QMutex>
-#include "../../ui/manager_of_ui.h"
+#include <QTimer>
+#include "../diy_signal-data/diy_signal-data.h"
 
 // namespace MyApp::UI{ class UiManager; }
-
-inline constexpr int SIGNAL_CHANNEL_COUNT = 9;
-
-struct DataFrame {
-    float data[SIGNAL_CHANNEL_COUNT];
-};
-Q_DECLARE_METATYPE(DataFrame)
 
 class BLFrameParser;
 
@@ -37,7 +31,7 @@ public:
     void test_interruption();
 
     void parserData(const QByteArray &data);
-    void saveData(QVector<DataFrame> batchSaveData);
+    void saveData(const QVector<DataFrame> &batchSaveData);
     void transmitData(const QByteArray &data);
 
     void executeCMD(const QByteArray &cmd);
@@ -66,9 +60,9 @@ private:
     std::function<std::string()> save_dir_path;
 
     static constexpr int CHANNEL_COUNT = SIGNAL_CHANNEL_COUNT;
-    static constexpr int SAMPLE_RATE_HZ = 1000;
+    static constexpr int SAMPLE_RATE_HZ = SIGNAL_SAMPLE_RATE_HZ;
     static constexpr int MAX_DURATION_SEC = 20 * 60; // 20 min
-    static constexpr quint64 MAX_ROWS_PER_FILE = SAMPLE_RATE_HZ * MAX_DURATION_SEC; // 1,200,000
+    static constexpr quint64 MAX_ROWS_PER_FILE = SAMPLE_RATE_HZ * MAX_DURATION_SEC; // 240,000
     quint64 currentRowCount = 0;
     quint64 totalSavedRows = 0;
 
@@ -86,6 +80,7 @@ public:
     explicit BLFrameParser(QObject *parent = nullptr);
 
     void appendInfo(const QByteArray &info);
+    void reset();
 
     QTimer parserTimer;
 signals:
@@ -103,6 +98,15 @@ public:
 
 
 private:
+    double CH5_odd_judge = 0.0;
+    double CH5_even_judge = 0.0;
+    double CH6_odd_judge = 0.0;
+    double CH6_even_judge = 0.0;
+    quint64 CH5_count_judge = 0;
+    quint64 CH6_count_judge = 0;
+    bool CH5_judge = false;
+    bool CH6_judge = false;
+    bool calibrationCompletedEmitted = false;
 
 
     static constexpr int DATA_FRAME_LEN = 30;
@@ -112,8 +116,9 @@ private:
 
 public:
 signals:
-    void test_esp32_data_signal(QList<QVector<double>> &m_channelData);
-    void dataSave(QVector<DataFrame> batchSaveData);
+    void test_esp32_data_signal(const QList<QVector<double>> &m_channelData);
+    void dataSave(const QVector<DataFrame> &batchSaveData);
+    void demultiplexCalibrationCompleted();
     void data_error(int error_count);
     // void test_esp32_data_signal(float *result_array);
     // void dataSave(float *result_array);

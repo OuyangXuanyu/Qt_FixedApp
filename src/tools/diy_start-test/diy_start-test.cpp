@@ -4,6 +4,8 @@
 
 #include "diy_start-test.h"
 
+#include "../../ui/manager_of_ui.h"
+
 #include <algorithm>
 #include <limits>
 
@@ -13,8 +15,9 @@
 
 qint64 getChronoMicrosecondsSinceEpoch();
 
-StartTest::StartTest(QWidget *parent, MyApp::UI::UiManager *ui_manager) : parent(parent), ui_manager(ui_manager){
-    blfp = new BLFrameParser();  // 数据解析（串口+蓝牙统一使用）
+StartTest::StartTest(QWidget *parent, MyApp::UI::UiManager *ui_manager)
+    : QObject(parent), parent(parent), ui_manager(ui_manager){
+    blfp = new BLFrameParser(this);  // 数据解析（串口+蓝牙统一使用）
     save_dir_path = [this]() {
         return this->ui_manager->baseDir_AppData.toStdString()
         + "/" + "each_P_data"
@@ -27,10 +30,13 @@ StartTest::StartTest(QWidget *parent, MyApp::UI::UiManager *ui_manager) : parent
     // tcpSocket->connectToHost("127.0.0.1", 5678);
 }
 
-StartTest::~StartTest() = default;
+StartTest::~StartTest() {
+    closeCurrentCsvFile();
+}
 
 bool StartTest::btn_pressed(const std::string &_name, const std::string &_id, const bool start) {
     if (start == true) {
+        blfp->reset();
         p_name = _name;
         p_id = _id;
 
@@ -86,7 +92,7 @@ void StartTest::parserData(const QByteArray &data){
     }
 }
 
-void StartTest::saveData(QVector<DataFrame> batchSaveData){
+void StartTest::saveData(const QVector<DataFrame> &batchSaveData){
     if (!csvStream) return;
     for (const auto&[data] : batchSaveData) {
         if (currentRowCount >= MAX_ROWS_PER_FILE && !openNewCsvFile())
@@ -174,7 +180,29 @@ BLFrameParser::BLFrameParser(QObject *parent) : QObject(parent){
     for(int i=0; i<9; ++i) m_channelData.append(QVector<double>());
 }
 
+void BLFrameParser::reset() {
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_totalBuffer.clear();
+        freshData.clear();
+    }
+    m_processBuffer.clear();
+    for (QVector<double> &channel : m_channelData)
+        channel.clear();
+
+    CH5_odd_judge = 0.0;
+    CH5_even_judge = 0.0;
+    CH6_odd_judge = 0.0;
+    CH6_even_judge = 0.0;
+    CH5_count_judge = 0;
+    CH6_count_judge = 0;
+    CH5_judge = false;
+    CH6_judge = false;
+    calibrationCompletedEmitted = false;
+}
+
 void BLFrameParser::appendInfo(const QByteArray &info) {
+    /*
     // if (info.size() != 21)
     //     return;
     //
@@ -199,6 +227,7 @@ void BLFrameParser::appendInfo(const QByteArray &info) {
     // std::cout << info << std::endl;
     // std::cout << info.toHex(' ').toStdString() << "  len=" << info.size() << std::endl;
     // std::cout << "len=" << info.size() << std::endl;
+    */
 
     m_mutex.lock();
     m_totalBuffer.append(info);
@@ -213,16 +242,6 @@ void BLFrameParser::parse()
         std::lock_guard<std::mutex> lock(m_mutex);
         freshData.swap(m_totalBuffer);
     }
-
-    static double CH5_odd_judge = 0;
-    static double CH5_even_judge = 0;
-    static double CH6_odd_judge = 0;
-    static double CH6_even_judge = 0;
-    static int CH5_count_judge = 0;
-    static int CH6_count_judge = 0;
-
-    static bool CH5_judge = false;
-    static bool CH6_judge = false;
 
     m_processBuffer.append(freshData);
     freshData.clear();
@@ -246,6 +265,10 @@ void BLFrameParser::parse()
                         if (CH5_count_judge % 2 == 0) CH5_even_judge += val;
                         else CH5_odd_judge += val;
                         CH5_count_judge++;
+                        if (CH5_count_judge == 100) {
+                            CH5_judge = CH5_odd_judge < CH5_even_judge;
+                            std::cout << "CH5校准完成" << std::endl;
+                        }
                         m_channelData[chIdx].append(0);
                         m_channelData[chIdx].append(0);
                         m_channelData[chIdx+1].append(0);
@@ -254,6 +277,10 @@ void BLFrameParser::parse()
                         if (CH6_count_judge % 2 == 0) CH6_even_judge += val;
                         else CH6_odd_judge += val;
                         CH6_count_judge++;
+                        if (CH6_count_judge == 100) {
+                            CH6_judge = CH6_odd_judge < CH6_even_judge;
+                            std::cout << "CH6校准完成" << std::endl;
+                        }
                         m_channelData[chIdx+1].append(0);
                         m_channelData[chIdx+1].append(0);
                         m_channelData[chIdx+2].append(0);
@@ -278,6 +305,7 @@ void BLFrameParser::parse()
                                 m_channelData[chIdx].append(val);
                             }
                         }
+                        CH5_count_judge++;
                     } else if (CH6_count_judge >= 100 && chIdx == 6) {
                         if (CH6_count_judge % 2 == 0) {
                             if (CH6_judge == true) {
@@ -288,7 +316,7 @@ void BLFrameParser::parse()
                                 m_channelData[chIdx+2].append(val);
                                 m_channelData[chIdx+2].append(val);
                             }
-                        } else if (CH5_count_judge % 2 == 1) {
+                        } else if (CH6_count_judge % 2 == 1) {
                             if (CH6_judge == true) {
                                 m_channelData[chIdx+2].append(val);
                                 m_channelData[chIdx+2].append(val);
@@ -298,19 +326,20 @@ void BLFrameParser::parse()
                                 m_channelData[chIdx+1].append(val);
                             }
                         }
+                        CH6_count_judge++;
                     }
                 }
             }
         }
-        if (CH5_count_judge == 100) {
-            std::cout << "CH5达到100了" << std::endl;
-            CH5_judge = CH5_odd_judge<CH5_even_judge;
+        if (!calibrationCompletedEmitted
+            && CH5_count_judge >= 100 && CH6_count_judge >= 100) {
+            calibrationCompletedEmitted = true;
+            // 校准期间的补零数据不进入实时分析窗口。
+            for (QVector<double> &channel : m_channelData)
+                channel.clear();
+            emit demultiplexCalibrationCompleted();
+            continue;
         }
-        if (CH6_count_judge == 100) {
-            std::cout << "CH6达到100了" << std::endl;
-            CH6_judge = CH6_odd_judge<CH6_even_judge;
-        }
-
         // 前 8 个存储通道都集齐一批数据后，才同时绘图和落盘。
         bool ready = true;
         for (int channel = 0; channel < SIGNAL_CHANNEL_COUNT; ++channel)
@@ -338,9 +367,6 @@ void BLFrameParser::parse()
             for(int i=0; i<9; ++i) m_channelData[i].clear();
         }
     }
-
-
-
 }
 
 // qint64 getChronoMicrosecondsSinceEpoch() {

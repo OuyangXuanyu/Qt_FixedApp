@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/audio">
+        <file alias="general_warning.wav">audio/general_warning.wav</file>
+        <file alias="device_disconnected.wav">audio/device_disconnected.wav</file>
+        <file alias="test_completed.wav">audio/test_completed.wav</file>
+    </qresource>
+</RCC>

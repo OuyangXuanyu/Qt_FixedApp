@@ -17,6 +17,8 @@
 #include "../../tools/diy_bl/diy_bl.h"
 #include "../../tools/diy_start-test/diy_start-test.h"
 #include "../../tools/diy_ui_toast-notification/diy_ui_toast-notification.h"
+#include "../../tools/diy_audio/diy_audio.h"
+#include "../../tools/diy_signal-analysis/diy_signal-analysis.h"
 
 
 #include "bl_ui/mainwindow_bl.h"
@@ -73,6 +75,9 @@ namespace MyApp::UI::mainwindow {
         BluetoothManager *blMgr;
         QList<QBluetoothDeviceInfo> BLscannedDevices;
 
+        AlarmAudioManager *alarmAudioManager;
+        SignalAnalysisManager *signalAnalysisManager;
+
         // using BleDeviceInfo = DiyBlWinRt::BleDeviceInfo;
         // DiyBlWinRt::BluetoothManager *blMgr;
         //
@@ -105,7 +110,7 @@ namespace MyApp::UI::mainwindow {
         void onSerialConnected();
         void onSerialDisconnected();
 
-        void test_esp32_data_draw(QList<QVector<double>> &newData);
+        void test_esp32_data_draw(const QList<QVector<double>> &newData);
 
         // void handleSerialData(const QByteArray& data);
 
