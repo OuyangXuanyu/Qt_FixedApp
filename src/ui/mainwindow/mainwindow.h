@@ -21,7 +21,9 @@
 #include "../../tools/diy_signal-analysis/diy_signal-analysis.h"
 
 
+#include "serial_ui/mainwindow_serial.h"
 #include "bl_ui/mainwindow_bl.h"
+#include "settings_ui/mainwindow_settings.h"
 
 namespace MyApp::UI{ class UiManager; }
 
@@ -54,10 +56,16 @@ namespace MyApp::UI::mainwindow {
         void startSerial(const QString& portName, qint32 baudrate, QSerialPort::DataBits dataBits, QSerialPort::StopBits stopBits, QSerialPort::Parity parity);
         void writeSerial(const QString& data);
         void stopSerial();
+        void bluetoothDisconnected();
+        void serialDisconnected();
 
     public:
         explicit mainwindow(QWidget *parent = nullptr, UiManager *ui_manager = nullptr);
         ~mainwindow() override;
+
+        // 主动断开当前传输方式。采集过程中不允许切换设备。
+        bool disconnectBluetooth();
+        bool disconnectSerial();
 
         QThread* serial_thread;
 
@@ -99,6 +107,7 @@ namespace MyApp::UI::mainwindow {
         void on_BTN_Patient_SearchRecord_clicked();
         void on_BTN_Test_clicked();
         void on_BTN_EXIT_clicked();
+
 
         // void on_RBTN_BL_clicked();
         // void on_RBTN_Serial_clicked();

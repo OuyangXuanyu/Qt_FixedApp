@@ -65,7 +65,7 @@
        <number>0</number>
       </property>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,1,1,1,1,1">
+       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,1,1,1,0,0,1">
         <property name="spacing">
          <number>6</number>
         </property>
@@ -294,6 +294,21 @@ QPushButton:hover { background-color: #0000bf; }</string>
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="BTN_Settings">
+          <property name="styleSheet">
+           <string notr="true">QPushButton {
+                background-color: #3f3fff; color: white;
+                border: none; padding: 10px 20px; border-radius: 8px;
+                font-weight: bold; font-size: 14px;
+            }
+QPushButton:hover { background-color: #0000bf; }</string>
+          </property>
+          <property name="text">
+           <string>设置</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="BTN_Exit">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -309,11 +324,14 @@ QPushButton:hover { background-color: #0000bf; }</string>
           </property>
           <property name="styleSheet">
            <string notr="true">QPushButton {
-                background-color: #ff3f3f; color: white;
-                border: none; padding: 10px 20px; border-radius: 8px;
-                font-weight: bold; font-size: 14px;
-            }
-QPushButton:hover { background-color: #bf0000; }</string>
+background-color: #af0f0f; 
+color: white;
+border: none; padding: 10px 20px; border-radius: 8px;
+font-weight: bold; font-size: 14px;
+}
+QPushButton:hover {
+background-color: #3f0000;
+}</string>
           </property>
           <property name="text">
            <string>退出</string>

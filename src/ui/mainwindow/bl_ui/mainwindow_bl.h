@@ -16,7 +16,7 @@ namespace MyApp::UI::mainwindow_bl {
     QT_END_NAMESPACE
 
     class mainwindow_bl : public QWidget {
-    Q_OBJECT
+        Q_OBJECT
 
     public:
         explicit mainwindow_bl(QWidget *parent = nullptr, UiManager *ui_manager = nullptr);

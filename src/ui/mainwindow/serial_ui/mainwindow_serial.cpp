@@ -51,19 +51,38 @@ namespace MyApp::UI::mainwindow_serial {
     }
 
     void mainwindow_serial::on_BTN_SerialConnect_clicked() {
-        if (!ui_manager->page_mainwindow->isSerialConnected) {
-            emit ui_manager->page_mainwindow->startSerial(
-                ui->CBBox_Serial->currentText(),
+        auto *mainWindow = ui_manager->page_mainwindow.data();
+        if (!mainWindow)
+            return;
+
+        if (mainWindow->isSerialConnected) {
+            mainWindow->disconnectSerial();
+            return;
+        }
+
+        const QString portName = ui->CBBox_Serial->currentText();
+        const auto startSerialConnection = [mainWindow, portName] {
+            emit mainWindow->startSerial(
+                portName,
                 3000000,
                 QSerialPort::Data8,
                 QSerialPort::OneStop,
                 QSerialPort::NoParity
-                );
-        }
-        else {
-            emit ui_manager->page_mainwindow->stopSerial();
+            );
+        };
+
+        if (!mainWindow->isBLConnected) {
+            startSerialConnection();
+            return;
         }
 
+        // 蓝牙断开是异步过程，确认断开后再打开串口。
+        const QMetaObject::Connection pendingConnection = connect(
+            mainWindow, &mainwindow::mainwindow::bluetoothDisconnected,
+            mainWindow, startSerialConnection,
+            Qt::SingleShotConnection);
+        if (!mainWindow->disconnectBluetooth())
+            QObject::disconnect(pendingConnection);
     }
 
 

@@ -50,6 +50,7 @@ namespace MyApp::UI::mainwindow_bottom_menu {
         //         }
         //     });
         // });
+
         // 确保它能捕获鼠标事件
         this->setAttribute(Qt::WA_Hover);
     }
@@ -89,7 +90,7 @@ namespace MyApp::UI::mainwindow_bottom_menu {
 
     void mainwindow_bottom_menu::leaveEvent(QEvent *event)
     {
-        if ((window_blSet && window_blSet->isVisible()) || (window_serialSet && window_serialSet->isVisible())) {
+        if ((window_blSet && window_blSet->isVisible()) || (window_serialSet && window_serialSet->isVisible()) || (window_settingsSet && window_settingsSet->isVisible())) {
             return;
         }
         // 2. 获取全局鼠标位置
@@ -147,10 +148,19 @@ namespace MyApp::UI::mainwindow_bottom_menu {
         parent_ptr->on_BTN_EXIT_clicked();
     }
 
+    void mainwindow_bottom_menu::on_BTN_Settings_clicked() {
+        if (!window_settingsSet) initSettingsWindow();
+
+        QPoint pos = ui->BTN_Settings->mapToGlobal(QPoint(0, 0));
+        pos.setY(pos.y() - window_settingsSet->height() - 2);
+        window_settingsSet->move(pos);
+        window_settingsSet->show();
+        window_settingsSet->activateWindow();
+    }
+
     void mainwindow_bottom_menu::on_RBTN_BL_clicked(){
         ToastNotification::showMessage(parent_ptr, "开始扫描蓝牙", 2500);
 
-        // parent_ptr->on_RBTN_Serial_clicked();
         if (!window_blSet) initBlWindow();
         QPoint pos = ui->RBTN_Serial->mapToGlobal(QPoint(0, 0));
         pos.setY(pos.y() - window_blSet->height() - 2);
@@ -162,9 +172,8 @@ namespace MyApp::UI::mainwindow_bottom_menu {
         parent_ptr->blMgr->blScr->startScan();
     }
     void mainwindow_bottom_menu::on_RBTN_Serial_clicked(){
-        // parent_ptr->on_RBTN_BL_clicked();
-        ToastNotification::showMessage(parent_ptr, "开始扫描串口", 2500,
-                                       parent_ptr->ui->Stack_MonitorState->width());
+        ToastNotification::showMessage(parent_ptr, "开始扫描串口", 2500, parent_ptr->ui->Stack_MonitorState->width());
+
         if (!window_serialSet) initSerialWindow();
         QPoint pos = ui->RBTN_Serial->mapToGlobal(QPoint(0, 0));
         pos.setY(pos.y() - window_serialSet->height() - 2);
@@ -188,6 +197,14 @@ namespace MyApp::UI::mainwindow_bottom_menu {
         if (!window_blSet) {
             window_blSet = new mainwindow_bl::mainwindow_bl(this, parent_ptr->ui_manager);
             window_blSet->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+        }
+    }
+
+    void mainwindow_bottom_menu::initSettingsWindow() {
+        if (!window_settingsSet) {
+            window_settingsSet = new mainwindow_settings::mainwindow_settings(this, parent_ptr->ui_manager);
+            window_settingsSet->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+            std::cout << window_settingsSet->height() << std::endl;
         }
     }
 

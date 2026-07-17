@@ -50,27 +50,38 @@ namespace MyApp::UI::mainwindow_bl {
     }
 
     void mainwindow_bl::on_BTN_BlConnect_clicked() {
-        if (!ui_manager->page_mainwindow->isBLConnected) {
+        auto *mainWindow = ui_manager->page_mainwindow.data();
+        if (!mainWindow)
+            return;
+
+        if (!mainWindow->isBLConnected) {
             const int index = ui->CBBox_Bl->currentIndex();
-            if (index < 0 || index >= ui_manager->page_mainwindow->BLscannedDevices.size()) {
+            if (index < 0 || index >= mainWindow->BLscannedDevices.size()) {
                 std::cout<<"[ERROR] 未选择有效设备"<<std::endl;
                 return;
             }
 
-            const auto &device = ui_manager->page_mainwindow->BLscannedDevices.at(index);
-            // ui->Label_AppName->setText("🔌 正在连接...");
-            std::cout<<"[INFO] 正在连接..."<<std::endl;
+            const QBluetoothDeviceInfo device = mainWindow->BLscannedDevices.at(index);
+            const auto startBluetoothConnection = [mainWindow, device] {
+                std::cout << "[INFO] 正在连接..." << std::endl;
+                mainWindow->blMgr->connectToDevice(device);
+            };
 
-            ui_manager->page_mainwindow->blMgr->connectToDevice(device);
+            if (!mainWindow->isSerialConnected) {
+                startBluetoothConnection();
+                return;
+            }
 
+            // 串口关闭在工作线程中执行，确认关闭后再连接蓝牙。
+            const QMetaObject::Connection pendingConnection = connect(
+                mainWindow, &mainwindow::mainwindow::serialDisconnected,
+                mainWindow, startBluetoothConnection,
+                Qt::SingleShotConnection);
+            if (!mainWindow->disconnectSerial())
+                QObject::disconnect(pendingConnection);
+            return;
         }
-        else {
-            // emit ui_manager->page_mainwindow->stopSerial();
-            // isSerialConnected = false;
-            // ui->BTN_SerialConnect->setText(QStringLiteral("打开串口"));
-            // ui->RBTN_Serial->setEnabled(true);
-            // ui->RBTN_BL->setEnabled(true);
-        }
 
+        mainWindow->disconnectBluetooth();
     }
 } // MyApp::UI::mainwindow_bl

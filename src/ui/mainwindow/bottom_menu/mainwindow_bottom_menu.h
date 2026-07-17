@@ -21,6 +21,9 @@ namespace MyApp::UI::mainwindow_serial {
 namespace MyApp::UI::mainwindow_bl {
     class mainwindow_bl;
 }
+namespace MyApp::UI::mainwindow_settings {
+    class mainwindow_settings;
+}
 namespace MyApp::UI::mainwindow_bottom_menu {
     QT_BEGIN_NAMESPACE
     namespace Ui { class mainwindow_bottom_menu; }
@@ -39,9 +42,11 @@ namespace MyApp::UI::mainwindow_bottom_menu {
 
         QPointer<mainwindow_serial::mainwindow_serial> window_serialSet = nullptr;
         QPointer<mainwindow_bl::mainwindow_bl> window_blSet = nullptr;
+        QPointer<mainwindow_settings::mainwindow_settings> window_settingsSet = nullptr;
 
         void initSerialWindow();
         void initBlWindow();
+        void initSettingsWindow();
 
     protected:
         // 重写鼠标进入和离开事件
@@ -65,6 +70,8 @@ namespace MyApp::UI::mainwindow_bottom_menu {
         void on_BTN_Patient_SearchRecord_clicked();
         void on_BTN_Test_clicked();
         void on_BTN_Exit_clicked();
+        void on_BTN_Settings_clicked();
+
 
         void on_RBTN_BL_clicked();
         void on_RBTN_Serial_clicked();

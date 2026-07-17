@@ -1,0 +1,19 @@
+{
+  "App_Name": "八嘎呀路",
+  "App_Version": "v0.1.1",
+
+  "Connect Default Config": {
+    "Serial": {
+      "COM": -1,
+      "Baudrate": 921600,
+      "AutoConnect": 0
+    },
+    "Bl": {
+      "Device_Name": "111",
+      "Device_Service_UUID": "aaa",
+      "Device_RX_UUID": "0000-a11adasdasds",
+      "Device_TX_UUID": "0000-a11adasdasas",
+      "AutoConnect": 0
+    }
+  }
+}

@@ -23,7 +23,7 @@
 #include "mainwindow_searchpatient/mainwindow_searchpatient.h"
 #include "mainwindow_playbackdata/mainwindow_playbackdata.h"
 #include "mainwindow/serial_ui/mainwindow_serial.h"
-#include "./mainwindow/bottom_menu/mainwindow_bottom_menu.h"
+#include "mainwindow/bottom_menu/mainwindow_bottom_menu.h"
 
 // === 前向声明（推荐，减少编译依赖）===
 namespace MyApp::UI::login_dialog {

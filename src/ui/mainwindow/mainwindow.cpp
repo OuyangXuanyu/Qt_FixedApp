@@ -400,6 +400,41 @@ namespace MyApp::UI::mainwindow {
         //
         // blMgr->connectToDevice(device);
     }
+
+    bool mainwindow::disconnectBluetooth() {
+        if (!isBLConnected)
+            return true;
+
+        if (isTesting) {
+            QMessageBox::warning(this, QStringLiteral("警告"),
+                                 QStringLiteral("测试过程中不能切换或断开采集设备，请先停止测试。"));
+            return false;
+        }
+
+        if (!blMgr)
+            return false;
+
+        blMgr->disconnectDevice();
+        return true;
+    }
+
+    bool mainwindow::disconnectSerial() {
+        if (!isSerialConnected)
+            return true;
+
+        if (isTesting) {
+            QMessageBox::warning(this, QStringLiteral("警告"),
+                                 QStringLiteral("测试过程中不能切换或断开采集设备，请先停止测试。"));
+            return false;
+        }
+
+        if (!serialMgr || !serial_thread || !serial_thread->isRunning())
+            return false;
+
+        emit stopSerial();
+        return true;
+    }
+
     void mainwindow::onBLDevicesFound(const QList<QBluetoothDeviceInfo> &devices) {
         BLscannedDevices = devices;
         for (const auto &dev : devices) {
@@ -416,24 +451,28 @@ namespace MyApp::UI::mainwindow {
         std::cout<<"onBLStatus: "<< msg.toStdString()<<std::endl;
     }
     void mainwindow::set_isBLConnected(const bool _info) {
+        const bool wasConnected = isBLConnected;
         isBLConnected = _info;
         bottom_menu->window_blSet->ui->BTN_BlConnect->setText(_info ? "断开蓝牙" : "连接蓝牙");
         updateMonitorDeviceState();
+        if (wasConnected && !_info)
+            emit bluetoothDisconnected();
     }
 
     void mainwindow::onSerialConnected() {
         isSerialConnected = true;
         updateMonitorDeviceState();
         bottom_menu->window_serialSet->ui->BTN_SerialConnect->setText(QStringLiteral("断开串口"));
-        bottom_menu->ui->RBTN_Serial->setEnabled(false);
-        bottom_menu->ui->RBTN_BL->setEnabled(false);
     }
     void mainwindow::onSerialDisconnected() {
+        const bool wasConnected = isSerialConnected;
         isSerialConnected = false;
         updateMonitorDeviceState();
         bottom_menu->window_serialSet->ui->BTN_SerialConnect->setText(QStringLiteral("打开串口"));
         bottom_menu->ui->RBTN_Serial->setEnabled(true);
         bottom_menu->ui->RBTN_BL->setEnabled(true);
+        if (wasConnected)
+            emit serialDisconnected();
     }
 
     // 开始测试实现唯一入口
@@ -530,8 +569,26 @@ namespace MyApp::UI::mainwindow {
 
     // 测试按钮
     void mainwindow::on_BTN_Test_clicked() {
-        alarmAudioManager->play(AlarmAudioManager::AlarmType::GeneralWarning, false);
+        QFile configFile(QStringLiteral(":/config/app_config.json"));
+        if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            std::cerr << "Failed to open app_config.json: "
+                      << configFile.errorString().toStdString() << std::endl;
+            return;
+        }
+
+        const QByteArray configContent = configFile.readAll();
+        std::cout << "=== app_config.json ===" << std::endl;
+        std::cout.write(configContent.constData(), configContent.size());
+        if (!configContent.endsWith('\n'))
+            std::cout.put('\n');
+        std::cout.flush();
+
+        // Ex_Audio: 测试音频是否成功
+        // alarmAudioManager->play(AlarmAudioManager::AlarmType::GeneralWarning, false);
     }
+
+
+    // 设置按钮 -> 在bottom_menu中实现
 
     // 退出按钮
     void mainwindow::on_BTN_EXIT_clicked() {

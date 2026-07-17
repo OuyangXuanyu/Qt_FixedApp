@@ -44,7 +44,11 @@ find_package(Qt6 COMPONENTS
 if (APPLE)
     set(APP_EXECUTABLE_TYPE MACOSX_BUNDLE)
 else ()
-    set(APP_EXECUTABLE_TYPE)
+    set(APP_EXECUTABLE_TYPE
+            src/ui/mainwindow/settings_ui/mainwindow_settings.cpp
+            src/ui/mainwindow/settings_ui/mainwindow_settings.h
+            src/ui/mainwindow/settings_ui/mainwindow_settings.ui
+            src/ui/mainwindow/settings_ui/mainwindow_settings.cpp)
 endif ()
 
 qt_add_executable(Qt_Project_FixedApp ${APP_EXECUTABLE_TYPE} src/main.cpp
@@ -126,8 +130,22 @@ qt_add_executable(Qt_Project_FixedApp ${APP_EXECUTABLE_TYPE} src/main.cpp
         src/ui/mainwindow/bottom_menu/mainwindow_bottom_menu.cpp
         src/ui/mainwindow/bottom_menu/mainwindow_bottom_menu.h
         src/ui/mainwindow/bottom_menu/mainwindow_bottom_menu.ui
+
+        src/ui/mainwindow/settings_ui/mainwindow_settings.cpp
+        src/ui/mainwindow/settings_ui/mainwindow_settings.h
+        src/ui/mainwindow/settings_ui/mainwindow_settings.ui
+
 )
 unset(APP_EXECUTABLE_TYPE)
+
+# 将根目录下的应用配置编译进 Qt 资源系统。
+# 程序内通过 :/config/app_config.json 访问，不依赖运行时工作目录。
+qt_add_resources(Qt_Project_FixedApp "app_config"
+        PREFIX "/config"
+        BASE "${CMAKE_CURRENT_SOURCE_DIR}"
+        FILES
+        app_config.json
+)
 
 # Prevent <windows.h> from defining min/max macros that conflict with
 # std::min, std::max, and std::numeric_limits<T>::max().
