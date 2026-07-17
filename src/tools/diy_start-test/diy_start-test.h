@@ -6,6 +6,10 @@
 #define DIY_START_TEST_H
 #pragma once
 
+#ifdef WIN32
+#include <mutex>
+#endif
+
 #include <QWidget>
 #include <QDir>
 #include <QTcpSocket>

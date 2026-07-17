@@ -129,6 +129,15 @@ qt_add_executable(Qt_Project_FixedApp ${APP_EXECUTABLE_TYPE} src/main.cpp
 )
 unset(APP_EXECUTABLE_TYPE)
 
+# Prevent <windows.h> from defining min/max macros that conflict with
+# std::min, std::max, and std::numeric_limits<T>::max().
+if (WIN32)
+    target_compile_definitions(Qt_Project_FixedApp PRIVATE
+            NOMINMAX
+            WIN32_LEAN_AND_MEAN
+    )
+endif ()
+
 if (APPLE)
     set_target_properties(Qt_Project_FixedApp PROPERTIES
             MACOSX_BUNDLE_BUNDLE_NAME "Qt Project FixedApp"
